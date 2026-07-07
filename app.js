@@ -1,29 +1,39 @@
-/* ==========================================================================
-   MATCHUP LAB — app.js
-   Logica dell'applicazione. Nessuna dipendenza esterna: i grafici sono
-   disegnati a mano in SVG/CSS per il pieno controllo visivo.
 
-   Nota sulla "prospettiva": nel dataset ogni coppia di campioni esiste una
-   sola volta, con un'etichetta fissa champion_a / champion_b (non esiste la
-   riga inversa). Quando l'utente sceglie i due campioni in un ordine
-   qualsiasi, normalizeMatchup() risolve quale dei due e' "a" e quale "b"
-   nella riga trovata e restituisce degli helper (pair/diffAB/pctA/arrAB)
-   che parlano sempre in termini di "sinistra" (slot A scelto dall'utente,
-   colore teal) e "destra" (slot B, colore ambra) — mai in termini di a/b
-   di archivio. Questo evita di mostrare per errore le statistiche scambiate
-   quando l'utente inverte l'ordine di selezione.
-   ========================================================================== */
 (function () {
   'use strict';
 
+  function setDataStatus(kind, text) {
+    var el = document.getElementById('dataStatus');
+    if (!el) return;
+    el.className = 'data-status-pill ' + (kind || 'loading');
+    el.textContent = text || 'Caricamento dati';
+  }
+
+  function showDatasetError(message) {
+    var empty = document.getElementById('emptyState');
+    var dossier = document.getElementById('dossier');
+    if (dossier) dossier.hidden = true;
+    if (!empty) return;
+    empty.hidden = false;
+    empty.innerHTML = '<h3>Dataset non disponibile</h3><p>' + message + '</p>';
+  }
+
+  setDataStatus('loading', 'Caricamento dati');
+
   var DATA = window.MATCHUP_APP_DATA;
+  if (!DATA || !Array.isArray(DATA.matchupColumns) || !DATA.matchups) {
+    setDataStatus('error', 'Dati assenti');
+    showDatasetError('Controlla che matchup_data.js sia nella stessa cartella e venga caricato prima di app.js.');
+    throw new Error('[Matchup Lab] MATCHUP_APP_DATA non disponibile o incompleto.');
+  }
+
   var COLS = {};
   DATA.matchupColumns.forEach(function (c, i) { COLS[c] = i; });
 
-  var ROLE_LABELS = { TOP: 'Top', JUNGLE: 'Jungle', MIDDLE: 'Mid', BOTTOM: 'ADC', UTILITY: 'Support' };
+  var ROLE_LABELS = { TOP: 'Top', JUNGLE: 'Jungle', MIDDLE: 'Mid', BOTTOM: 'Bot', UTILITY: 'Support' };
   var ROLE_LONG = {
     TOP: 'Corsia Top', JUNGLE: 'Boscaglia', MIDDLE: 'Corsia di Mezzo',
-    BOTTOM: 'Corsia Bassa (ADC)', UTILITY: 'Supporto'
+    BOTTOM: 'Corsia Bassa (Bot)', UTILITY: 'Supporto'
   };
   var ROLE_ORDER = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
 
@@ -177,6 +187,14 @@
   document.addEventListener('focusout', function (e) {
     if (e.target.closest('[data-tip]')) hideTip();
   });
+
+  // Compatibilità: alcune render function V2 chiamano bindTips(scope).
+  // La gestione tooltip reale è già delegata a document tramite [data-tip],
+  // quindi questa funzione mantiene le chiamate sicure senza duplicare listener.
+  function bindTips(scope) {
+    return scope;
+  }
+
 
   /* ------------------------------------------------------------------ *
    * Combobox di ricerca campioni
@@ -403,13 +421,26 @@
     dossierEl.hidden = false;
 
     var M = normalizeMatchup(rec, state.champA);
-    renderVerdict(M);
-    renderOverview(M);
-    renderTrajectory(M);
-    renderCombat(M);
-    renderEconomy(M);
-    renderObjectives(M);
-    renderRaw(M);
+
+    function safeRender(label, panelId, fn) {
+      try {
+        fn(M);
+      } catch (err) {
+        console.error('[Matchup Lab] Errore in sezione ' + label + ':', err);
+        var panel = document.getElementById(panelId);
+        if (panel) {
+          panel.innerHTML = '<div class="empty-note full-span"><strong>' + esc(label) + '</strong><br>Questa sezione non è stata renderizzata per un errore locale. Le altre sezioni restano disponibili; controlla la console per il dettaglio.</div>';
+        }
+      }
+    }
+
+    safeRender('Verdetto', 'verdictBand', renderVerdict);
+    safeRender('Panoramica', 'panel-overview', renderOverview);
+    safeRender('Andamento partita', 'panel-trajectory', renderTrajectory);
+    safeRender('Combattimento', 'panel-combat', renderCombat);
+    safeRender('Oro / XP / Snowball', 'panel-economy', renderEconomy);
+    safeRender('Obiettivi / Torri', 'panel-objectives', renderObjectives);
+    safeRender('Dettaglio', 'panel-raw', renderRaw);
   }
 
   /* ------------------------------------------------------------------ *
@@ -1096,6 +1127,582 @@
       fmtInt(DATA.meta.total_low_sample) + ' a campione ridotto (< ' + DATA.meta.min_matches_confident + ' partite)';
   }
 
+
+  /* ====================================================================== *
+   * MATCHUP LAB V2 — lettura visuale + insight pesati
+   * ----------------------------------------------------------------------
+   * Queste funzioni sovrascrivono alcune render function originali senza
+   * cambiare la struttura dati o il contratto con matchup_data.js.
+   * ====================================================================== */
+
+  function clamp01(v) {
+    if (!isNum(v)) return 0;
+    return Math.max(0, Math.min(1, v));
+  }
+  function clampAbs(v, max) {
+    if (!isNum(v) || !max) return 0;
+    return Math.max(0, Math.min(1, Math.abs(v) / max));
+  }
+  function fmtPP(v, d) {
+    if (d === undefined) d = 1;
+    return isNum(v) ? (v * 100).toLocaleString('it-IT', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' pp' : '—';
+  }
+  function fmtSignedPP(v, d) {
+    if (d === undefined) d = 1;
+    if (!isNum(v)) return '—';
+    var n = v * 100;
+    return (n > 0 ? '+' : '') + n.toLocaleString('it-IT', { minimumFractionDigits: d, maximumFractionDigits: d }) + ' pp';
+  }
+  function toneFromSigned(v, deadzone) {
+    if (!isNum(deadzone)) deadzone = 0;
+    if (!isNum(v) || Math.abs(v) <= deadzone) return 'neutral';
+    return v > 0 ? 'a' : 'b';
+  }
+  function sideName(tone) {
+    if (tone === 'a') return state.champA;
+    if (tone === 'b') return state.champB;
+    return 'Entrambi';
+  }
+  function signedSideText(v, unit, deadzone) {
+    var tone = toneFromSigned(v, deadzone || 0);
+    if (tone === 'neutral') return 'equilibrio';
+    return (tone === 'a' ? state.champA : state.champB) + ' +' + fmtInt(Math.abs(v)) + (unit || '');
+  }
+  function seriesAtMinute(M, col, minute) {
+    // Robustezza importante: nei diversi export la timeline può essere
+    // indicizzata con array minutes esplicito, con indice 0=minuto 0, oppure
+    // con indice 0=minuto 1. Evitiamo quindi falsi `—` quando il dato esiste.
+    var directAt15 = {
+      gold_diff_by_minute: 'gold_diff_15m',
+      xp_diff_by_minute: 'xp_diff_15m',
+      excess_gold_diff_by_minute: 'excess_gold_diff_15m',
+      excess_xp_diff_by_minute: 'excess_xp_diff_15m'
+    };
+
+    if (minute === 15 && directAt15[col]) {
+      var direct = M.diffAB(directAt15[col]);
+      if (isNum(direct)) return direct;
+    }
+
+    var arr = M.arrAB(col) || [];
+    if (!Array.isArray(arr) || !arr.length) return null;
+
+    function toFinite(v) {
+      var n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    }
+    function valueAt(i) {
+      return i >= 0 && i < arr.length && isNum(arr[i]) ? arr[i] : null;
+    }
+
+    var minutes = M.direct('minutes') || [];
+    if (Array.isArray(minutes) && minutes.length) {
+      var exactIdx = -1;
+      for (var i = 0; i < minutes.length; i++) {
+        if (toFinite(minutes[i]) === minute) { exactIdx = i; break; }
+      }
+      var exactVal = valueAt(exactIdx);
+      if (isNum(exactVal)) return exactVal;
+
+      // Se il minuto 15 non è presente in modo esatto, usa il punto più vicino
+      // entro una finestra stretta. Meglio un dato reale vicino che un falso vuoto.
+      var bestIdx = -1, bestDist = Infinity;
+      for (var j = 0; j < minutes.length; j++) {
+        var m = toFinite(minutes[j]);
+        if (m === null) continue;
+        var d = Math.abs(m - minute);
+        if (d < bestDist && isNum(valueAt(j))) { bestDist = d; bestIdx = j; }
+      }
+      if (bestIdx >= 0 && bestDist <= 1) return valueAt(bestIdx);
+    }
+
+    // Fallback per serie senza array minutes: proviamo sia 0-based sia 1-based.
+    var zeroBased = valueAt(minute);
+    if (isNum(zeroBased)) return zeroBased;
+
+    var oneBased = valueAt(minute - 1);
+    if (isNum(oneBased)) return oneBased;
+
+    return null;
+  }
+  function profile(role, champ) {
+    return (DATA.championProfiles[role] || {})[champ] || {};
+  }
+  function pctile(p, key, invert) {
+    var v = p && p.percentiles ? p.percentiles[key] : null;
+    if (!isNum(v)) return null;
+    return invert ? 100 - v : v;
+  }
+  function meanNums(values) {
+    var vals = values.filter(isNum);
+    if (!vals.length) return null;
+    return vals.reduce(function (a, b) { return a + b; }, 0) / vals.length;
+  }
+  function maxAbsLane(items) {
+    var best = null;
+    items.forEach(function (x) {
+      if (!x || !isNum(x.value)) return;
+      if (!best || Math.abs(x.value) > Math.abs(best.value)) best = x;
+    });
+    return best;
+  }
+
+  function snowballRead(M) {
+    var sb = M.snowballPerspective();
+    if (!sb || !isNum(sb.leftAhead) || !isNum(sb.leftBehind)) return null;
+    var sensitivity = Math.abs(sb.leftAhead - sb.leftBehind);
+    var corr = M.direct('snowball_corr_15m');
+    var vol = M.direct('gold_diff_std_15m');
+    var aheadPct = M.pctA('pct_a_ahead_15m');
+    return {
+      leftAhead: sb.leftAhead,
+      leftBehind: sb.leftBehind,
+      rightAhead: sb.rightAhead,
+      rightBehind: sb.rightBehind,
+      sensitivity: sensitivity,
+      corr: isNum(corr) ? Math.abs(corr) : null,
+      vol: vol,
+      aheadPct: aheadPct
+    };
+  }
+  function snowballTier(sensitivity) {
+    if (!isNum(sensitivity)) return { cls: 'neutral', label: 'non disponibile', copy: 'La sensibilità snowball non è presente per questo matchup.' };
+    if (sensitivity >= 0.25) return { cls: 'danger', label: 'esplosiva', copy: 'Essere avanti o indietro al 15° minuto cambia drasticamente la lettura della partita.' };
+    if (sensitivity >= 0.16) return { cls: 'warning', label: 'alta', copy: 'Il vantaggio early pesa molto: la corsia può decidere il ritmo del game.' };
+    if (sensitivity >= 0.08) return { cls: 'info', label: 'media', copy: 'Il vantaggio early conta, ma non determina da solo il destino del matchup.' };
+    return { cls: 'neutral', label: 'bassa', copy: 'La corsia tende a lasciare più spazio a recupero, scaling o macro.' };
+  }
+
+  function objectiveEdge(M) {
+    if (state.role === 'JUNGLE') {
+      var best = null;
+      OBJECTIVES.forEach(function (o) {
+        var pct = M.pctA('pct_champion_a_first_' + o.key);
+        if (!isNum(pct)) return;
+        var edge = pct - 0.5;
+        if (!best || Math.abs(edge) > Math.abs(best.edge)) best = { label: o.label, edge: edge, pct: pct };
+      });
+      return best;
+    }
+    var tower = M.pctA('pct_champion_a_wins_tower_race');
+    if (isNum(tower)) return { label: 'Prima torre', edge: tower - 0.5, pct: tower };
+    return null;
+  }
+
+  function buildInsightCards(M) {
+    var champA = state.champA, champB = state.champB;
+    var wr = M.pair('winrate');
+    var diff = M.pair('diff_winrate');
+    var n = M.direct('n_matches');
+    var gold15 = seriesAtMinute(M, 'gold_diff_by_minute', 15);
+    var xp15 = seriesAtMinute(M, 'xp_diff_by_minute', 15);
+    var exGold15 = seriesAtMinute(M, 'excess_gold_diff_by_minute', 15);
+    var exXp15 = seriesAtMinute(M, 'excess_xp_diff_by_minute', 15);
+    var snow = snowballRead(M);
+    var obj = objectiveEdge(M);
+    var level6 = null;
+    var l6 = M.pair('avg_level6_minute');
+    if (isNum(l6[0]) && isNum(l6[1])) level6 = l6[0] - l6[1];
+    var vision = M.diffAB('vision_diff_a_minus_b');
+    var dmg = M.pair('avg_damage_to_champs');
+    var taken = M.pair('avg_damage_taken');
+    var cc = M.pair('avg_total_time_cc_dealt');
+    var goldDep = M.diffAB('goldxp_gold_dependency_diff_a_minus_b');
+    var xpDep = M.diffAB('goldxp_xp_dependency_diff_a_minus_b');
+    var insights = [];
+    function add(weight, tone, tag, title, body) {
+      if (!body) return;
+      insights.push({ weight: weight, tone: tone || 'neutral', tag: tag, title: title, body: body });
+    }
+
+    var wrEdge = isNum(wr[0]) ? wr[0] - 0.5 : null;
+    if (isNum(wrEdge) && Math.abs(wrEdge) >= 0.035) {
+      var side = wrEdge > 0 ? champA : champB;
+      add(95, wrEdge > 0 ? 'a' : 'b', 'Matchup', 'Vantaggio diretto a ' + side,
+        side + ' ha il segnale più netto sul winrate del matchup (' + fmtPct(Math.max(wr[0], wr[1]), 1) + '). Questo è il dato più immediato, ma va letto insieme a campione e dinamiche early.');
+    } else {
+      add(70, 'neutral', 'Matchup', 'Winrate quasi bilanciato', 'Il winrate diretto non separa chiaramente i due campioni: qui contano molto andamento early, snowball e profilo dei campioni.');
+    }
+
+    var baseAdv = isNum(diff[0]) && isNum(diff[1]) ? diff[0] - diff[1] : null;
+    if (isNum(baseAdv) && Math.abs(baseAdv) >= 0.025) {
+      var sideBase = baseAdv > 0 ? champA : champB;
+      add(88, baseAdv > 0 ? 'a' : 'b', 'Baseline', sideBase + ' migliora di più rispetto al suo normale',
+        'Lo scarto dal winrate generale favorisce ' + sideBase + ' (' + fmtSignedPP(Math.abs(baseAdv), 1) + ' di differenza relativa tra i due profili). È un segnale più pulito del solo winrate, perché confronta il matchup con la baseline del campione.');
+    }
+
+    if (isNum(gold15) && Math.abs(gold15) >= 450) {
+      var sideGold = gold15 > 0 ? champA : champB;
+      add(86, gold15 > 0 ? 'a' : 'b', 'Early gold', sideGold + ' tende a uscire meglio dai primi 15 minuti',
+        'Il differenziale medio è circa +' + fmtInt(Math.abs(gold15)) + ' oro al 15°. È un segnale concreto di pressione, recall migliori o wave state più favorevole.');
+    }
+    if (isNum(exGold15) && Math.abs(exGold15) >= 250) {
+      var sideEx = exGold15 > 0 ? champA : champB;
+      add(82, exGold15 > 0 ? 'a' : 'b', 'Excess gold', 'Il matchup batte la baseline per ' + sideEx,
+        'L’excess gold al 15° è +' + fmtInt(Math.abs(exGold15)) + ': non è solo forza generale del campione, ma un segnale specifico di questa coppia di campioni.');
+    }
+    if (isNum(gold15) && isNum(exGold15) && Math.abs(gold15) >= 400 && Math.abs(exGold15) < 180) {
+      add(76, toneFromSigned(gold15, 0), 'Lettura', 'Vantaggio più strutturale che specifico',
+        'Il gold reale è visibile, ma l’excess gold è contenuto: parte del vantaggio sembra venire dalla forza media del campione, non solo dall’interazione del matchup.');
+    }
+    if (isNum(gold15) && isNum(exGold15) && Math.abs(exGold15) >= 300 && Math.abs(gold15) < 350) {
+      add(78, toneFromSigned(exGold15, 0), 'Lettura', 'Matchup più importante di quanto sembri dal gold grezzo',
+        'Il gold reale è quasi pari, ma l’excess gold è marcato: la corsia sta performando meglio/peggio rispetto a ciò che ci si aspetterebbe dalla baseline dei campioni.');
+    }
+
+    if (isNum(xp15) && Math.abs(xp15) >= 420) {
+      var sideXp = xp15 > 0 ? champA : champB;
+      add(72, xp15 > 0 ? 'a' : 'b', 'XP tempo', sideXp + ' ha più accesso a tempo e livelli',
+        'Il vantaggio XP al 15° è circa +' + fmtInt(Math.abs(xp15)) + '. Può contare più del gold se il matchup dipende da spike di livello, wave control o all-in.');
+    }
+    if (isNum(level6) && Math.abs(level6) >= 0.25) {
+      var sideL6 = level6 < 0 ? champA : champB;
+      add(68, level6 < 0 ? 'a' : 'b', 'Livello 6', sideL6 + ' arriva prima al primo power spike',
+        'La differenza media è circa ' + fmtDec(Math.abs(level6), 2) + ' minuti. In lane con ultimate decisive, questo cambia finestre di trade e possibilità di setup.');
+    }
+
+    if (snow) {
+      var tier = snowballTier(snow.sensitivity);
+      if (snow.sensitivity >= 0.16) {
+        add(90, tier.cls, 'Snowball', 'Corsia a sensibilità snowball ' + tier.label,
+          'Il gap tra winrate quando avanti e quando indietro al 15° è di ' + fmtPP(snow.sensitivity, 1) + '. Questo non favorisce automaticamente un team: indica quanto è costoso perdere il controllo early.');
+      }
+      if (isNum(snow.aheadPct) && Math.abs(snow.aheadPct - 0.5) >= 0.08) {
+        var sideAhead = snow.aheadPct > 0.5 ? champA : champB;
+        add(80, snow.aheadPct > 0.5 ? 'a' : 'b', 'Primo vantaggio', sideAhead + ' tende a essere avanti al 15°',
+          sideAhead + ' è avanti al 15° nel ' + fmtPct(Math.max(snow.aheadPct, 1 - snow.aheadPct), 1) + ' delle partite. Se la sensibilità snowball è alta, questo segnale pesa molto di più.');
+      }
+    }
+
+    if (isNum(M.direct('gold_diff_std_15m')) && M.direct('gold_diff_std_15m') >= 900) {
+      add(74, 'warning', 'Volatilità', 'Matchup instabile',
+        'La deviazione standard del gold al 15° è alta (' + fmtInt(M.direct('gold_diff_std_15m')) + '). La corsia può aprirsi in modi molto diversi: attenzione a sample, matchup execution e jungle pressure.');
+    }
+
+    if (obj && Math.abs(obj.edge) >= 0.07) {
+      var sideObj = obj.edge > 0 ? champA : champB;
+      add(70, obj.edge > 0 ? 'a' : 'b', state.role === 'JUNGLE' ? 'Obiettivi' : 'Torri', sideObj + ' ha il segnale migliore su ' + obj.label.toLowerCase(),
+        obj.label + ' favorisce ' + sideObj + ' nel ' + fmtPct(Math.max(obj.pct, 1 - obj.pct), 1) + ' dei casi. È utile soprattutto se il game plan ruota attorno a priorità e primi obiettivi.');
+    }
+
+    if (isNum(vision) && Math.abs(vision) >= 2.5) {
+      var sideVision = vision > 0 ? champA : champB;
+      add(58, vision > 0 ? 'a' : 'b', 'Visione', sideVision + ' contribuisce di più al controllo mappa',
+        'Il differenziale medio di vision score è +' + fmtDec(Math.abs(vision), 1) + '. Non decide la lane da solo, ma aiuta setup, tracciamento e sicurezza sulle giocate.');
+    }
+    if (isNum(cc[0]) && isNum(cc[1]) && Math.abs(cc[0] - cc[1]) >= 4) {
+      var sideCc = cc[0] > cc[1] ? champA : champB;
+      add(57, cc[0] > cc[1] ? 'a' : 'b', 'Controllo', sideCc + ' offre più CC medio',
+        'Il profilo di controllo è più alto di circa ' + fmtDec(Math.abs(cc[0] - cc[1]), 1) + 's. Può pesare nelle lane dove gank setup o all-in sono centrali.');
+    }
+    if (isNum(dmg[0]) && isNum(dmg[1]) && Math.abs(dmg[0] - dmg[1]) >= 2500) {
+      var sideDmg = dmg[0] > dmg[1] ? champA : champB;
+      add(54, dmg[0] > dmg[1] ? 'a' : 'b', 'Danno', sideDmg + ' ha output medio più alto',
+        'Il differenziale medio di danno ai campioni è circa +' + fmtInt(Math.abs(dmg[0] - dmg[1])) + '. È un segnale di presenza nei fight, non necessariamente di vantaggio in lane.');
+    }
+    if (isNum(taken[0]) && isNum(taken[1]) && Math.abs(taken[0] - taken[1]) >= 2500) {
+      var sideTank = taken[0] > taken[1] ? champA : champB;
+      add(48, taken[0] > taken[1] ? 'a' : 'b', 'Durabilità', sideTank + ' assorbe più risorse',
+        'Il danno subito medio è più alto di circa ' + fmtInt(Math.abs(taken[0] - taken[1])) + '. Può indicare frontline, esposizione o pattern di fight più prolungati.');
+    }
+
+    if ((isNum(goldDep) && Math.abs(goldDep) >= 1.5) || (isNum(xpDep) && Math.abs(xpDep) >= 1.5)) {
+      var score = (isNum(goldDep) ? goldDep : 0) + (isNum(xpDep) ? xpDep : 0);
+      var sideDep = score > 0 ? champA : champB;
+      add(52, score > 0 ? 'a' : 'b', 'Conversione risorse', sideDep + ' converte meglio risorse in vittoria',
+        'Le dipendenze oro/XP indicano maggiore sensibilità alle risorse. Questo non è winrate: misura quanto un vantaggio economico tende a tradursi in esito positivo.');
+    }
+
+    if (confidence(n).level === 'low') {
+      add(100, 'warning', 'Affidabilità', 'Campione ridotto',
+        'Ci sono solo ' + fmtInt(n) + ' partite osservate. Il dato è utile, ma non conclusivo: dai più peso ai segnali concordanti e meno ai singoli picchi.');
+    }
+
+    return insights.sort(function (a, b) { return b.weight - a.weight; }).slice(0, 8);
+  }
+
+  function insightCardsHtml(M) {
+    var items = buildInsightCards(M);
+    return '<div class="insight-grid">' + items.map(function (it) {
+      return '<article class="insight-card ' + it.tone + '">' +
+        '<div class="insight-tag">' + esc(it.tag) + '</div>' +
+        '<h4>' + esc(it.title) + '</h4>' +
+        '<p>' + esc(it.body) + '</p>' +
+      '</article>';
+    }).join('') + '</div>';
+  }
+
+  function miniBarsHtml(rows) {
+    return '<div class="mini-bars">' + rows.map(function (r) {
+      var val = isNum(r.value) ? r.value : 0;
+      var width = Math.round(Math.max(4, Math.min(100, r.scale ? Math.abs(val) / r.scale * 100 : Math.abs(val) * 100)));
+      var tone = toneFromSigned(val, r.deadzone || 0);
+      var label = tone === 'neutral' ? 'Equilibrio' : (tone === 'a' ? state.champA : state.champB);
+      return '<div class="mini-bar-row ' + tone + '">' +
+        '<div class="mini-bar-head"><span>' + esc(r.label) + '</span><strong>' + esc(r.format ? r.format(val) : fmtDec(val, 1)) + '</strong></div>' +
+        '<div class="mini-bar-track"><i style="width:' + width + '%"></i></div>' +
+        '<div class="mini-bar-sub">' + esc(label) + '</div>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+
+  function renderVerdict(M) {
+    var champA = state.champA, champB = state.champB, role = state.role;
+    var n = M.direct('n_matches');
+    var conf = confidence(n);
+    var wr = M.pair('winrate');
+    var genWr = M.pair('general_winrate');
+    var diffWr = M.pair('diff_winrate');
+    var wrEdge = isNum(wr[0]) ? wr[0] - 0.5 : 0;
+    var favoredIsLeft = wrEdge >= 0;
+    var favoredName = favoredIsLeft ? champA : champB;
+    var favoredWr = favoredIsLeft ? wr[0] : wr[1];
+    var snow = snowballRead(M);
+    var tier = snowballTier(snow ? snow.sensitivity : null);
+    var gold15 = seriesAtMinute(M, 'gold_diff_by_minute', 15);
+    var exGold15 = seriesAtMinute(M, 'excess_gold_diff_by_minute', 15);
+    var obj = objectiveEdge(M);
+
+    var outlook = Math.abs(wrEdge) < 0.02 ? 'Matchup quasi pari' : favoredName + ' leggermente avanti';
+    if (Math.abs(wrEdge) >= 0.07) outlook = favoredName + ' edge netto';
+    else if (Math.abs(wrEdge) >= 0.04) outlook = favoredName + ' avanti';
+
+    var html = '';
+    html += '<section class="v2-hero">';
+    html += '<div class="v2-hero-top"><div><div class="v2-eyebrow">Matchup read · ' + esc(ROLE_LABELS[role]) + '</div>';
+    html += '<h2><span class="name-a">' + esc(champA) + '</span><em>vs</em><span class="name-b">' + esc(champB) + '</span></h2>';
+    html += '<p>' + esc(outlook) + '. Lettura basata su winrate diretto, baseline del campione, andamento early e affidabilità del sample.</p></div>';
+    html += '<div class="sample-badge ' + conf.level + '"><span class="dot"></span>' + conf.label + ' · ' + fmtInt(n) + ' partite</div></div>';
+    html += '<div class="v2-verdict-main"><div class="v2-big-number ' + (favoredIsLeft ? 'a' : 'b') + '"><span>Segnale principale</span><strong>' + fmtPct(favoredWr, 1) + '</strong><em>' + esc(favoredName) + '</em></div>';
+    html += '<div class="v2-winrail"><div class="tick50"></div><div class="left" style="width:' + Math.max(0, Math.min(100, wr[0] * 100)) + '%"><span>' + fmtPct(wr[0], 1) + '</span></div><div class="right" style="width:' + Math.max(0, Math.min(100, wr[1] * 100)) + '%"><span>' + fmtPct(wr[1], 1) + '</span></div></div></div>';
+    html += '<div class="v2-kpi-row">';
+    html += '<div class="v2-kpi ' + toneFromSigned(diffWr[0] - diffWr[1], 0.005) + '"><span>Scarto da baseline</span><strong>' + fmtSignedPP((isNum(diffWr[0]) && isNum(diffWr[1])) ? diffWr[0] - diffWr[1] : null, 1) + '</strong><em>matchup vs winrate medio</em></div>';
+    html += '<div class="v2-kpi ' + toneFromSigned(gold15, 80) + '"><span>Oro @15</span><strong>' + (isNum(gold15) ? (gold15 > 0 ? '+' : '') + fmtInt(gold15) : '—') + '</strong><em>vantaggio early reale</em></div>';
+    html += '<div class="v2-kpi ' + toneFromSigned(exGold15, 60) + '"><span>Excess gold @15</span><strong>' + (isNum(exGold15) ? (exGold15 > 0 ? '+' : '') + fmtInt(exGold15) : '—') + '</strong><em>effetto specifico matchup</em></div>';
+    html += '<div class="v2-kpi ' + tier.cls + '"><span>Snowball</span><strong>' + (snow ? fmtPP(snow.sensitivity, 1) : '—') + '</strong><em>' + esc(tier.label) + '</em></div>';
+    if (obj) html += '<div class="v2-kpi ' + toneFromSigned(obj.edge, 0.02) + '"><span>' + esc(obj.label) + '</span><strong>' + fmtPct(Math.max(obj.pct, 1 - obj.pct), 1) + '</strong><em>' + esc(sideName(toneFromSigned(obj.edge, 0.02))) + '</em></div>';
+    html += '</div>';
+    html += '<div class="v2-hero-insights"><div class="card-head"><h3>Insight prioritari</h3><span class="card-sub">Consigli ordinati per peso interpretativo, non per rumore numerico.</span></div>' + insightCardsHtml(M) + '</div>';
+    html += '</section>';
+    document.getElementById('verdictBand').innerHTML = html;
+  }
+
+  function radarSvg(title, axes, pa, pb) {
+    var size = 360, cx = 180, cy = 185, r = 118;
+    function point(i, val) {
+      var ang = -Math.PI / 2 + i * 2 * Math.PI / axes.length;
+      var rr = r * clamp01((val || 0) / 100);
+      return [cx + Math.cos(ang) * rr, cy + Math.sin(ang) * rr];
+    }
+    function poly(vals) {
+      return vals.map(function (v, i) { var p = point(i, v); return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ');
+    }
+    var valsA = axes.map(function (a) { return a.a; });
+    var valsB = axes.map(function (a) { return a.b; });
+    var grid = [0.25, 0.5, 0.75, 1].map(function (k) {
+      var pts = axes.map(function (_, i) { var ang = -Math.PI / 2 + i * 2 * Math.PI / axes.length; return (cx + Math.cos(ang) * r * k).toFixed(1) + ',' + (cy + Math.sin(ang) * r * k).toFixed(1); }).join(' ');
+      return '<polygon points="' + pts + '" class="radar-grid-poly"></polygon>';
+    }).join('');
+    var labels = axes.map(function (a, i) {
+      var ang = -Math.PI / 2 + i * 2 * Math.PI / axes.length;
+      var x = cx + Math.cos(ang) * (r + 44);
+      var y = cy + Math.sin(ang) * (r + 34);
+      var anchor = Math.abs(Math.cos(ang)) < 0.2 ? 'middle' : (Math.cos(ang) > 0 ? 'start' : 'end');
+      return '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" text-anchor="' + anchor + '" class="radar-label">' + esc(a.label) + '</text>';
+    }).join('');
+    return '<div class="v2-radar-card"><div class="card-head"><h3>' + esc(title) + '</h3><span class="card-sub">scala 0–100, basata sui percentili di ruolo</span></div>' +
+      '<svg class="v2-radar" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="' + esc(title) + '">' +
+      grid + axes.map(function (_, i) { var p = point(i, 100); return '<line x1="' + cx + '" y1="' + cy + '" x2="' + p[0].toFixed(1) + '" y2="' + p[1].toFixed(1) + '" class="radar-axis"/>'; }).join('') +
+      '<polygon points="' + poly(valsA) + '" class="radar-poly a"></polygon>' +
+      '<polygon points="' + poly(valsB) + '" class="radar-poly b"></polygon>' +
+      valsA.map(function (v, i) { var p = point(i, v); return '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="4" class="radar-dot a"/>'; }).join('') +
+      valsB.map(function (v, i) { var p = point(i, v); return '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="4" class="radar-dot b"/>'; }).join('') + labels + '</svg>' +
+      '<div class="radar-legend"><span><i class="a"></i>' + esc(state.champA) + '</span><span><i class="b"></i>' + esc(state.champB) + '</span></div></div>';
+  }
+
+  function renderOverview(M) {
+    var role = state.role, champA = state.champA, champB = state.champB;
+    var pa = profile(role, champA), pb = profile(role, champB);
+    var identityAxes = [
+      { label: 'Winrate', a: pctile(pa, 'general_winrate'), b: pctile(pb, 'general_winrate') },
+      { label: 'Danno', a: pctile(pa, 'avg_damage_to_champs'), b: pctile(pb, 'avg_damage_to_champs') },
+      { label: 'Tenuta', a: pctile(pa, 'avg_damage_taken'), b: pctile(pb, 'avg_damage_taken') },
+      { label: 'Visione', a: pctile(pa, 'vision_score'), b: pctile(pb, 'vision_score') },
+      { label: 'CC', a: pctile(pa, 'avg_total_time_cc_dealt'), b: pctile(pb, 'avg_total_time_cc_dealt') },
+      { label: 'Lvl 6', a: pctile(pa, 'avg_level6_minute', true), b: pctile(pb, 'avg_level6_minute', true) }
+    ];
+    var economyAxes = [
+      { label: 'Gold dep.', a: pctile(pa, 'goldxp_winpct_per_1k_gold'), b: pctile(pb, 'goldxp_winpct_per_1k_gold') },
+      { label: 'XP dep.', a: pctile(pa, 'goldxp_winpct_per_1k_xp'), b: pctile(pb, 'goldxp_winpct_per_1k_xp') },
+      { label: 'AUC', a: pctile(pa, 'goldxp_auc'), b: pctile(pb, 'goldxp_auc') },
+      { label: 'Visione', a: pctile(pa, 'vision_score'), b: pctile(pb, 'vision_score') },
+      { label: 'Tempo 6', a: pctile(pa, 'avg_level6_minute', true), b: pctile(pb, 'avg_level6_minute', true) }
+    ];
+    var diffRows = [
+      { label: 'Danno ai campioni', value: (M.pair('avg_damage_to_champs')[0] || 0) - (M.pair('avg_damage_to_champs')[1] || 0), scale: 7000, format: function (v) { return (v > 0 ? '+' : '') + fmtInt(v); } },
+      { label: 'Danno subito', value: (M.pair('avg_damage_taken')[0] || 0) - (M.pair('avg_damage_taken')[1] || 0), scale: 7000, format: function (v) { return (v > 0 ? '+' : '') + fmtInt(v); } },
+      { label: 'Vision score', value: M.diffAB('vision_diff_a_minus_b'), scale: 12, format: function (v) { return fmtSigned(v, 1); } },
+      { label: 'CC totale', value: (M.pair('avg_total_time_cc_dealt')[0] || 0) - (M.pair('avg_total_time_cc_dealt')[1] || 0), scale: 18, format: function (v) { return (v > 0 ? '+' : '') + fmtDec(v, 1) + 's'; } }
+    ];
+    var html = '<div class="panel-grid v2-overview">';
+    html += '<div class="card full-span"><div class="card-head"><h3>Identità del matchup</h3><span class="card-sub">I radar usano percentili normalizzati: leggibili a colpo d’occhio, senza mischiare scale incompatibili.</span></div><div class="v2-radar-grid">' + radarSvg('Profilo generale', identityAxes, pa, pb) + radarSvg('Economia e tempo', economyAxes, pa, pb) + '</div></div>';
+    html += '<div class="card"><div class="card-head"><h3>Confronto rapido</h3><span class="card-sub">Barre divergenti: sinistra/blu ' + esc(champA) + ', destra/rosso ' + esc(champB) + '.</span></div>' + miniBarsHtml(diffRows) + '</div>';
+    html += '<div class="card"><div class="card-head"><h3>Composizione danno</h3><span class="card-sub">Fisico, magico e puro restano separati.</span></div>' + damageStackRow('a', champA, M.pair('pct_physical_dmg')[0], M.pair('pct_magic_dmg')[0], M.pair('pct_true_dmg')[0]) + damageStackRow('b', champB, M.pair('pct_physical_dmg')[1], M.pair('pct_magic_dmg')[1], M.pair('pct_true_dmg')[1]) + '<div class="dmg-legend"><span><i style="background:var(--dmg-phys)"></i>Fisico</span><span><i style="background:var(--dmg-magic)"></i>Magico</span><span><i style="background:var(--dmg-true)"></i>Puro</span></div></div>';
+    html += '</div>';
+    document.getElementById('panel-overview').innerHTML = html;
+    bindTips(document.getElementById('panel-overview'));
+  }
+
+  function renderEconomy(M) {
+    var champA = state.champA, champB = state.champB;
+    var snow = snowballRead(M);
+    var tier = snowballTier(snow ? snow.sensitivity : null);
+    var gold15 = seriesAtMinute(M, 'gold_diff_by_minute', 15);
+    var xp15 = seriesAtMinute(M, 'xp_diff_by_minute', 15);
+    var exGold15 = seriesAtMinute(M, 'excess_gold_diff_by_minute', 15);
+    var exXp15 = seriesAtMinute(M, 'excess_xp_diff_by_minute', 15);
+    var corr = M.direct('snowball_corr_15m');
+    var vol = M.direct('gold_diff_std_15m');
+    var econRows = [
+      { label: 'Oro @15', value: gold15, scale: 2200, format: function (v) { return isNum(v) ? (v > 0 ? '+' : '') + fmtInt(v) : '—'; } },
+      { label: 'XP @15', value: xp15, scale: 2200, format: function (v) { return isNum(v) ? (v > 0 ? '+' : '') + fmtInt(v) : '—'; } },
+      { label: 'Excess gold @15', value: exGold15, scale: 1400, format: function (v) { return isNum(v) ? (v > 0 ? '+' : '') + fmtInt(v) : '—'; } },
+      { label: 'Excess XP @15', value: exXp15, scale: 1400, format: function (v) { return isNum(v) ? (v > 0 ? '+' : '') + fmtInt(v) : '—'; } }
+    ];
+    var aheadDiff = snow ? snow.leftAhead - snow.leftBehind : null;
+    var html = '<div class="panel-grid v2-economy">';
+    html += '<div class="card full-span v2-snowball-card ' + tier.cls + '"><div class="card-head"><h3>Snowball sensitivity</h3><span class="card-sub">Metrica neutra: misura quanto cambia l’esito tra essere avanti e indietro al minuto 15.</span></div>';
+    html += '<div class="snowball-visual"><div class="snowball-core"><span>Sensibilità</span><strong>' + (snow ? fmtPP(snow.sensitivity, 1) : '—') + '</strong><em>' + esc(tier.label) + '</em></div><div class="snowball-copy"><p>' + esc(tier.copy) + '</p>' +
+      '<div class="snowball-split"><div><span>' + esc(champA) + ' avanti @15</span><strong>' + (snow ? fmtPct(snow.leftAhead, 1) : '—') + '</strong></div><div><span>' + esc(champA) + ' indietro @15</span><strong>' + (snow ? fmtPct(snow.leftBehind, 1) : '—') + '</strong></div><div><span>Correlazione</span><strong>' + fmtDec(corr, 3) + '</strong></div><div><span>Volatilità oro</span><strong>' + fmtInt(vol) + '</strong></div></div></div></div></div>';
+    html += '<div class="card"><div class="card-head"><h3>Economia early</h3><span class="card-sub">Il gold reale indica pressione; l’excess gold isola l’effetto specifico del matchup.</span></div>' + miniBarsHtml(econRows) + '</div>';
+    html += '<div class="card"><div class="card-head"><h3>Conversione delle risorse</h3><span class="card-sub">Non è winrate: misura quanto oro/XP tendono a essere informativi per l’esito.</span></div>' + miniBarsHtml([
+      { label: 'Gold dependency', value: M.diffAB('goldxp_gold_dependency_diff_a_minus_b'), scale: 5, format: function (v) { return fmtSigned(v, 2); } },
+      { label: 'XP dependency', value: M.diffAB('goldxp_xp_dependency_diff_a_minus_b'), scale: 5, format: function (v) { return fmtSigned(v, 2); } }
+    ]) + '</div>';
+    document.getElementById('panel-economy').innerHTML = html;
+  }
+
+  function renderRaw(M) {
+    var champA = state.champA, champB = state.champB;
+    var rows = RAW_FIELDS.map(function (f) {
+      var leftV = null, rightV = null;
+      if (f.kind === 'pair') { var p = M.pair(f.base); leftV = p[0]; rightV = p[1]; }
+      else if (f.kind === 'pairFromPctA') { var pv = M.pctA(f.col); leftV = pv; rightV = isNum(pv) ? 1 - pv : null; }
+      else if (f.kind === 'pairFromSnowballAhead') { var sb = M.snowballPerspective(); leftV = sb ? sb.leftAhead : null; rightV = sb ? sb.rightAhead : null; }
+      else if (f.kind === 'pairFromSnowballBehind') { var sb2 = M.snowballPerspective(); leftV = sb2 ? sb2.leftBehind : null; rightV = sb2 ? sb2.rightBehind : null; }
+      else if (f.kind === 'diff') { leftV = M.diffAB(f.col); rightV = null; }
+      else { leftV = M.direct(f.col); rightV = null; }
+      return { label: f.label, a: f.fmt(leftV), b: (rightV !== null ? f.fmt(rightV) : '—') };
+    });
+    var html = '<div class="card full-span raw-compact"><div class="card-head"><h3>Dettaglio tecnico</h3><span class="card-sub">Secondario: utile per audit, export o controllo puntuale delle metriche.</span></div>' +
+      '<details><summary>Mostra tabella completa</summary><div class="raw-toolbar"><button class="raw-btn" id="rawCopyBtn">Copia testo</button><button class="raw-btn" id="rawCsvBtn">Scarica CSV</button></div>' +
+      '<table class="raw-table"><thead><tr><th>Metrica</th><th>' + esc(champA) + '</th><th>' + esc(champB) + '</th></tr></thead><tbody>' + rows.map(function (r) { return '<tr><td class="metric">' + esc(r.label) + '</td><td class="va">' + esc(r.a) + '</td><td class="vb">' + esc(r.b) + '</td></tr>'; }).join('') + '</tbody></table></details></div>';
+    document.getElementById('panel-raw').innerHTML = html;
+    var copyBtn = document.getElementById('rawCopyBtn');
+    var csvBtn = document.getElementById('rawCsvBtn');
+    if (copyBtn) copyBtn.addEventListener('click', function () {
+      var text = rows.map(function (r) { return r.label + ': ' + champA + ' = ' + r.a + ' | ' + champB + ' = ' + r.b; }).join('\n');
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text);
+      copyBtn.textContent = 'Copiato'; setTimeout(function () { copyBtn.textContent = 'Copia testo'; }, 1400);
+    });
+    if (csvBtn) csvBtn.addEventListener('click', function () {
+      function q(s) { return '"' + String(s).replace(/"/g, '""') + '"'; }
+      var csv = [q('Metrica') + ',' + q(champA) + ',' + q(champB)].concat(rows.map(function (r) { return q(r.label) + ',' + q(r.a) + ',' + q(r.b); })).join('\n');
+      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url; link.download = 'matchup_' + state.role + '_' + champA + '_vs_' + champB + '.csv';
+      document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+    });
+  }
+
+
+
+  /* ---------------------------------------------------------------------- *
+   * V2 compatibility overrides — keep every tab populated and coherent
+   * ---------------------------------------------------------------------- */
+  function renderTrajectory(M) {
+    var champA = state.champA, champB = state.champB;
+    var gold15 = seriesAtMinute(M, 'gold_diff_by_minute', 15);
+    var xp15 = seriesAtMinute(M, 'xp_diff_by_minute', 15);
+    var exGold15 = seriesAtMinute(M, 'excess_gold_diff_by_minute', 15);
+    var exXp15 = seriesAtMinute(M, 'excess_xp_diff_by_minute', 15);
+    var html = '<div class="panel-grid">';
+    html += '<div class="card full-span"><div class="card-head"><div><h3>Andamento partita</h3><span class="card-sub">Sopra lo zero favorisce <span style="color:var(--champ-a)">' + esc(champA) + '</span>; sotto lo zero favorisce <span style="color:var(--champ-b)">' + esc(champB) + '</span>.</span></div></div>';
+    html += '<div class="river-controls" id="trajControls">' + Object.keys(TRAJ_MODES).map(function (k) { return '<button class="river-btn' + (state.trajMode === k ? ' active' : '') + '" data-mode="' + k + '">' + TRAJ_MODES[k].label + '</button>'; }).join('') + '</div>';
+    html += '<div class="river-note" id="trajNote"></div><div class="river-svg-wrap" id="trajSvgWrap"></div><div class="river-legend"><span><i style="background:var(--champ-a)"></i>' + esc(champA) + '</span><span><i style="background:var(--champ-b)"></i>' + esc(champB) + '</span></div></div>';
+    html += '<div class="card"><div class="card-head"><h3>Checkpoint @15</h3><span class="card-sub">Lettura rapida del punto medio della lane.</span></div>' + miniBarsHtml([
+      { label: 'Oro @15', value: gold15, scale: 2200, format: function (v) { return isNum(v) ? (v > 0 ? '+' : '') + fmtInt(v) : '—'; } },
+      { label: 'XP @15', value: xp15, scale: 2200, format: function (v) { return isNum(v) ? (v > 0 ? '+' : '') + fmtInt(v) : '—'; } },
+      { label: 'Excess gold @15', value: exGold15, scale: 1400, format: function (v) { return isNum(v) ? (v > 0 ? '+' : '') + fmtInt(v) : '—'; } },
+      { label: 'Excess XP @15', value: exXp15, scale: 1400, format: function (v) { return isNum(v) ? (v > 0 ? '+' : '') + fmtInt(v) : '—'; } }
+    ]) + '</div>';
+    var profiles = DATA.championProfiles[state.role] || {};
+    var pa = profiles[champA] || {}, pb = profiles[champB] || {};
+    var l6a = pa.avg_level6_minute, l6b = pb.avg_level6_minute;
+    html += '<div class="card"><div class="card-head"><h3>Livello 6</h3><span class="card-sub">Timing medio nel ruolo: più basso significa spike prima.</span></div>';
+    if (isNum(l6a) || isNum(l6b)) {
+      var maxAx = Math.max(12, (l6a || 0) + 1, (l6b || 0) + 1);
+      html += '<div class="axis-mini"><div class="line"></div>';
+      if (isNum(l6a)) html += '<div class="pt a" style="left:' + (l6a / maxAx * 100) + '%"><div class="dot"></div><div class="lbl">' + esc(champA) + ' · ' + fmtDec(l6a, 2) + '\'</div></div>';
+      if (isNum(l6b)) html += '<div class="pt b" style="left:' + (l6b / maxAx * 100) + '%"><div class="dot"></div><div class="lbl">' + esc(champB) + ' · ' + fmtDec(l6b, 2) + '\'</div></div>';
+      html += '</div>';
+    } else {
+      html += '<div class="empty-note">Dato non disponibile per almeno uno dei due campioni.</div>';
+    }
+    html += '</div></div>';
+    document.getElementById('panel-trajectory').innerHTML = html;
+    document.querySelectorAll('#trajControls .river-btn').forEach(function (btn) { btn.addEventListener('click', function () { state.trajMode = btn.getAttribute('data-mode'); document.querySelectorAll('#trajControls .river-btn').forEach(function (b) { b.classList.toggle('active', b === btn); }); drawTrajChart(M); }); });
+    drawTrajChart(M);
+  }
+
+  function renderCombat(M) {
+    var champA = state.champA, champB = state.champB;
+    var phys = M.pair('pct_physical_dmg'), magic = M.pair('pct_magic_dmg'), truep = M.pair('pct_true_dmg');
+    var dealt = M.pair('avg_damage_to_champs'), taken = M.pair('avg_damage_taken');
+    var ccOthers = M.pair('avg_time_ccing_others'), ccTotal = M.pair('avg_total_time_cc_dealt');
+    var vision = M.pair('vision_score'), visionDiff = M.diffAB('vision_diff_a_minus_b');
+    var html = '<div class="panel-grid">';
+    html += '<div class="card full-span"><div class="card-head"><h3>Composizione danno</h3><span class="card-sub">Fisico, magico e puro: colori dedicati e non usati per altro.</span></div>' + damageStackRow('a', champA, phys[0], magic[0], truep[0]) + damageStackRow('b', champB, phys[1], magic[1], truep[1]) + '<div class="dmg-legend"><span><i style="background:var(--dmg-phys)"></i>Fisico</span><span><i style="background:var(--dmg-magic)"></i>Magico</span><span><i style="background:var(--dmg-true)"></i>Puro</span></div></div>';
+    html += '<div class="card"><div class="card-head"><h3>Danno e tenuta</h3><span class="card-sub">Output e danno assorbito non raccontano la stessa cosa: uno indica presenza, l’altro esposizione/frontline.</span></div>' + miniBarsHtml([
+      { label: 'Danno ai campioni', value: (dealt[0] || 0) - (dealt[1] || 0), scale: 7500, format: function (v) { return (v > 0 ? '+' : '') + fmtInt(v); } },
+      { label: 'Danno subito', value: (taken[0] || 0) - (taken[1] || 0), scale: 7500, format: function (v) { return (v > 0 ? '+' : '') + fmtInt(v); } }
+    ]) + '</div>';
+    html += '<div class="card"><div class="card-head"><h3>Controllo e visione</h3><span class="card-sub">Setup, sicurezza e contributo macro.</span></div>' + miniBarsHtml([
+      { label: 'CC medio', value: (ccOthers[0] || 0) - (ccOthers[1] || 0), scale: 16, format: function (v) { return (v > 0 ? '+' : '') + fmtDec(v, 1) + 's'; } },
+      { label: 'CC totale', value: (ccTotal[0] || 0) - (ccTotal[1] || 0), scale: 24, format: function (v) { return (v > 0 ? '+' : '') + fmtDec(v, 1) + 's'; } },
+      { label: 'Vision score', value: isNum(visionDiff) ? visionDiff : ((vision[0] || 0) - (vision[1] || 0)), scale: 14, format: function (v) { return fmtSigned(v, 1); } }
+    ]) + '</div>';
+    document.getElementById('panel-combat').innerHTML = html;
+    bindTips(document.getElementById('panel-combat'));
+  }
+
+  function renderObjectives(M) {
+    var role = state.role, champA = state.champA, champB = state.champB;
+    var html = '<div class="panel-grid">';
+    var any = false;
+    if (role === 'JUNGLE') {
+      OBJECTIVES.forEach(function (o) {
+        var pct = M.pctA('pct_champion_a_first_' + o.key);
+        var n = M.direct('n_matches_' + o.key);
+        if (!isNum(pct)) return;
+        any = true;
+        html += objectiveDonutCard(o.label, fmtInt(n) + ' occorrenze registrate', pct, champA, champB, esc(champA) + ' per primo');
+      });
+    } else if (role === 'TOP' || role === 'MIDDLE' || role === 'BOTTOM') {
+      var towerPct = M.pctA('pct_champion_a_wins_tower_race');
+      var towerFallDiff = M.diffAB('avg_tower_fall_diff_min_a_minus_b');
+      if (isNum(towerPct)) {
+        any = true;
+        html += objectiveDonutCard('Corsa alla prima torre', null, towerPct, champA, champB, esc(champA) + ' abbatte per primo');
+        html += '<div class="card"><div class="card-head"><h3>Timing torre</h3><span class="card-sub">Scarto medio nella caduta della prima torre di corsia.</span></div>' + miniBarsHtml([{ label: 'Scarto torre', value: towerFallDiff, scale: 4, format: function (v) { return fmtSigned(v, 2, ' min'); } }]) + '</div>';
+      }
+    }
+    if (!any) html += '<div class="empty-note full-span">Nessun dato obiettivo/torre disponibile per questo matchup specifico. La sezione resta vuota perché non inventa metriche quando il dataset non le contiene.</div>';
+    html += '</div>';
+    document.getElementById('panel-objectives').innerHTML = html;
+  }
+
   function init() {
     populateRolePills();
     renderGlossary();
@@ -1108,6 +1715,7 @@
     });
     var startRole = (best && best.role) || DATA.meta.roles[0];
     setRole(startRole);
+    setDataStatus('ready', 'Dataset pronto');
   }
 
   init();
