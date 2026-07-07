@@ -22,6 +22,7 @@
      aggiornano automaticamente: soft, faint, line, glow, stati e damage colors.
      ========================================================================== */
 
+
   /* Neutrals */
   --neutral-h: 240;
   --neutral-c: 0.024;
@@ -34,54 +35,57 @@
   --surface-3-l: 26%;
 
   /* Ink */
-  --ink-h: 230;
+  --ink-h: 240;
   --ink-c: 0.014;
 
-  /* Team colors: stessa luminanza e stessa croma, cambia solo la hue. */
-  --team-l: 72%;
-  --team-c: 0.17;
-  --team-a-h: 222;
-  --team-b-h: 24;
+  /* Team colors — L e C sono uguali per A e B, solo l'Hue cambia */
 
-  /* Semantic colors */
+  --team-l: 73%;
+  --team-c: 0.15;
+  --team-a-h: 225;
+  --team-b-h: 38;
+
+  /* Semantic colors — croma calibrata sulla FREQUENZA d'uso, non solo sull'hue:
+     ciò che appare raramente (danger, warning) resta vivido; ciò che appare in
+     continuazione (dmg-phys) va contenuto per non "consumare" la rarità del segnale */
   --success-l: 76%;
-  --success-c: 0.15;
-  --success-h: 148;
+  --success-c: 0.13;
+  --success-h: 150;
 
-  --warning-l: 80%;
+  --warning-l: 81%;
   --warning-c: 0.15;
-  --warning-h: 84;
+  --warning-h: 86;
 
-  --danger-l: 70%;
-  --danger-c: 0.18;
-  --danger-h: 28;
+  --danger-l: 60%;
+  --danger-c: 0.20;
+  --danger-h: 355;
 
-  --info-l: 74%;
-  --info-c: 0.15;
-  --info-h: 244;
+  --info-l: 75%;
+  --info-c: 0.10;
+  --info-h: 268;
 
-  /* Damage colors */
-  --dmg-phys-l: 74%;
-  --dmg-phys-c: 0.13;
-  --dmg-phys-h: 72;
+  /* Damage colors — tre materiali distinti, non tre hue a caso */
+  --dmg-phys-l: 76%;
+  --dmg-phys-c: 0.11;
+  --dmg-phys-h: 62;
 
   --dmg-magic-l: 72%;
-  --dmg-magic-c: 0.15;
-  --dmg-magic-h: 284;
+  --dmg-magic-c: 0.17;
+  --dmg-magic-h: 304;
 
-  --dmg-true-l: 84%;
-  --dmg-true-c: 0.075;
-  --dmg-true-h: 188;
+  --dmg-true-l: 91%;
+  --dmg-true-c: 0.03;
+  --dmg-true-h: 200;
 
   /* Alpha constants */
-  --alpha-soft: 0.16;
-  --alpha-faint: 0.075;
-  --alpha-line: 0.42;
-  --alpha-glow: 0.26;
+  --alpha-soft: 0.15;
+  --alpha-faint: 0.07;
+  --alpha-line: 0.40;
+  --alpha-glow: 0.20;
 
-  --alpha-state-soft: 0.15;
-  --alpha-state-line: 0.38;
-  --alpha-damage-soft: 0.16;
+  --alpha-state-soft: 0.14;
+  --alpha-state-line: 0.36;
+  --alpha-damage-soft: 0.18;
 
   /* ==========================================================================
      Typography
