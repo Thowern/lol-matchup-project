@@ -47,6 +47,7 @@ __pycache__/
 *.pyo
 *.pyd
 .venv/
+.venv_wsl/
 venv/
 env/
 
@@ -64,6 +65,7 @@ Thumbs.db
 # =========================
 run_collector.ps1
 run_collector.bat
+run_collector_wsl.bat
 stop_collector.ps1
 stop_collector.bat
 run_update_site.ps1
