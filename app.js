@@ -1,4 +1,3 @@
-
 (function () {
   'use strict';
 
@@ -205,6 +204,11 @@
     var options = [];
     var activeIndex = -1;
 
+    // Stable fix: la lista resta dentro la combobox e si apre in flusso.
+    // Non usa portal, fixed positioning o stacking trick: appare sempre sotto
+    // il campo corretto e spinge il contenuto successivo, quindi non può essere
+    // coperta/tagliata da cockpit, empty state o dossier più in basso.
+
     function setOptions(newOptions) {
       options = newOptions;
     }
@@ -226,11 +230,21 @@
       }
       list._filtered = filtered;
       list.classList.add('open');
+      rootEl.classList.add('open');
+      var slotEl = rootEl.closest('.slot');
+      if (slotEl) slotEl.classList.add('combo-open');
+      var pickerEl = rootEl.closest('.picker');
+      if (pickerEl) pickerEl.classList.add('picker-open');
       input.setAttribute('aria-expanded', 'true');
     }
 
     function close() {
       list.classList.remove('open');
+      rootEl.classList.remove('open');
+      var slotEl = rootEl.closest('.slot');
+      if (slotEl) slotEl.classList.remove('combo-open');
+      var pickerEl = rootEl.closest('.picker');
+      if (pickerEl && !pickerEl.querySelector('.combobox-list.open')) pickerEl.classList.remove('picker-open');
       input.setAttribute('aria-expanded', 'false');
       activeIndex = -1;
     }
@@ -251,6 +265,7 @@
     list.addEventListener('mousedown', function (e) {
       var opt = e.target.closest('.combobox-option');
       if (!opt) return;
+      e.preventDefault();
       var v = opt.getAttribute('data-value');
       var found = options.find(function (o) { return o.value === v; });
       input.value = found ? found.label : v;
@@ -258,7 +273,7 @@
       opts.onSelect(v);
     });
     document.addEventListener('click', function (e) {
-      if (!rootEl.contains(e.target)) close();
+      if (!rootEl.contains(e.target) && !list.contains(e.target)) close();
     });
 
     return {
@@ -316,22 +331,16 @@
 
   function setRole(role) {
     state.role = role;
+    state.champA = null;
+    state.champB = null;
     document.querySelectorAll('.role-pill').forEach(function (b) {
       b.classList.toggle('active', b.getAttribute('data-role') === role);
     });
     comboA.setOptions(championOptionsFor(role));
+    comboA.clear();
     comboB.setOptions([]);
     comboB.setEnabled(false, 'Scegli prima il campione A');
-
-    var top = DATA.meta.top_matchups_by_role[role] && DATA.meta.top_matchups_by_role[role][0];
-    renderChips(role);
-    if (top) {
-      applySelection(top.a, top.b);
-    } else {
-      state.champA = null; state.champB = null;
-      comboA.clear();
-      render();
-    }
+    render();
   }
 
   function applySelection(a, b) {
@@ -357,7 +366,18 @@
     }
   }
 
+  function pulseMotion(el, cls) {
+    if (!el) return;
+    cls = cls || 'is-spinning';
+    el.classList.remove(cls);
+    // Force reflow so repeated clicks replay the same motion consistently.
+    void el.offsetWidth;
+    el.classList.add(cls);
+    window.setTimeout(function () { el.classList.remove(cls); }, 620);
+  }
+
   document.getElementById('swapBtn').addEventListener('click', function () {
+    pulseMotion(document.getElementById('swapBtn'));
     if (!state.champA || !state.champB) return;
     var a = state.champA, b = state.champB;
     // Ricostruiamo le opzioni di B in base al nuovo campione A per coerenza,
@@ -371,19 +391,104 @@
     render();
   });
 
-  function renderChips(role) {
-    var top = DATA.meta.top_matchups_by_role[role] || [];
-    var wrap = document.getElementById('chipsRow');
-    wrap.innerHTML = top.slice(0, 8).map(function (m) {
-      return '<button class="chip" data-a="' + esc(m.a) + '" data-b="' + esc(m.b) + '">' +
-        esc(m.a) + ' — ' + esc(m.b) + ' <span class="n">' + fmtInt(m.n) + '</span></button>';
-    }).join('');
-    wrap.querySelectorAll('.chip').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        applySelection(btn.getAttribute('data-a'), btn.getAttribute('data-b'));
-      });
-    });
+
+
+  function renderSelectionHints() {
+    var hintA = document.getElementById('hintA');
+    var hintB = document.getElementById('hintB');
+    var roleLabelText = state.role ? ROLE_LABELS[state.role] : 'ruolo';
+    var pa = state.role && state.champA ? ((DATA.championProfiles[state.role] || {})[state.champA] || null) : null;
+    var pb = state.role && state.champB ? ((DATA.championProfiles[state.role] || {})[state.champB] || null) : null;
+    if (hintA) {
+      if (state.champA && pa && pa.coverage) {
+        hintA.innerHTML = '<strong>' + esc(state.champA) + '</strong> · ' + fmtInt(pa.coverage.n_matchups) + ' matchup · ' + fmtInt(pa.coverage.total_games) + ' partite da ' + roleLabelText;
+      } else if (state.role) {
+        hintA.textContent = 'Scegli il primo campione nel ruolo ' + roleLabelText + '.';
+      } else {
+        hintA.textContent = 'Scegli prima un ruolo per filtrare i campioni.';
+      }
+    }
+    if (hintB) {
+      if (state.champB && pb && pb.coverage) {
+        hintB.innerHTML = '<strong>' + esc(state.champB) + '</strong> · ' + fmtInt(pb.coverage.n_matchups) + ' matchup · ' + fmtInt(pb.coverage.total_games) + ' partite da ' + roleLabelText;
+      } else if (state.champA) {
+        hintB.textContent = 'Ora scegli un avversario con dati diretti contro ' + state.champA + '.';
+      } else {
+        hintB.textContent = 'Lo slot si sblocca dopo il Campione A.';
+      }
+    }
   }
+
+  function setCockpitText(id, text, htmlMode) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (htmlMode) el.innerHTML = text;
+    else el.textContent = text;
+  }
+
+  function renderToolCockpit(M, rec) {
+    renderSelectionHints();
+    var roleLabelText = state.role ? ROLE_LABELS[state.role] : 'ruolo';
+    var champA = state.champA || 'Campione A';
+    var champB = state.champB || 'Campione B';
+    var pa = state.role && state.champA ? ((DATA.championProfiles[state.role] || {})[state.champA] || null) : null;
+    var pb = state.role && state.champB ? ((DATA.championProfiles[state.role] || {})[state.champB] || null) : null;
+
+    setCockpitText('cockpitATitle', state.champA || 'In attesa');
+    setCockpitText('cockpitBTitle', state.champB || 'In attesa');
+    setCockpitText('cockpitACopy', pa && pa.coverage ? fmtPct(pa.general_winrate, 1) + ' winrate generale · ' + fmtInt(pa.coverage.n_matchups) + ' matchup coperti nel ruolo ' + roleLabelText + '.' : 'Scegli il lato di riferimento.');
+    setCockpitText('cockpitBCopy', pb && pb.coverage ? fmtPct(pb.general_winrate, 1) + ' winrate generale · ' + fmtInt(pb.coverage.n_matchups) + ' matchup coperti nel ruolo ' + roleLabelText + '.' : (state.champA ? 'Scegli un avversario reale dal dataset per attivare il dossier.' : 'Si sblocca dopo il Campione A.'));
+
+    if (!state.champA || !state.champB) {
+      setCockpitText('cockpitTitle', 'Nessun confronto attivo.');
+      setCockpitText('cockpitCopy', state.champA ? 'Manca il secondo lato: appena scegli B, il riepilogo mostra edge, timing e fiducia.' : 'Seleziona due campioni: qui resteranno solo i fondamentali del matchup.');
+      setCockpitText('cockpitFocus', state.champA ? state.champA + ' selezionato · avversario mancante.' : '—');
+      setCockpitText('cockpitMethod', state.role ? 'Contesto: ' + roleLabelText + '.' : '—');
+      setCockpitText('cockpitTrustTitle', 'In attesa');
+      setCockpitText('cockpitTrustCopy', 'La fiducia dipende dal campione diretto.');
+      setCockpitText('cockpitNextTitle', state.champA ? 'Completa il lato B' : 'Scegli il lato A');
+      setCockpitText('cockpitNextCopy', state.champA ? 'Avversari filtrati sul dataset.' : 'Nessun dato inventato prima della coppia.');
+      var meterIdle = document.getElementById('cockpitMeter');
+      if (meterIdle) meterIdle.style.setProperty('--meter', state.champA ? '58%' : '34%');
+      return;
+    }
+
+    if (!M || !rec) {
+      setCockpitText('cockpitTitle', champA + ' vs ' + champB + ': dato diretto assente.');
+      setCockpitText('cockpitCopy', 'La coppia esiste come scelta, ma non ha riga matchup nel ruolo selezionato.');
+      setCockpitText('cockpitFocus', 'Nessun edge calcolabile.');
+      setCockpitText('cockpitMethod', 'Cambia avversario o ruolo.');
+      setCockpitText('cockpitTrustTitle', 'Copertura assente');
+      setCockpitText('cockpitTrustCopy', 'Nessuna metrica sintetica viene inventata.');
+      setCockpitText('cockpitNextTitle', 'Matchup non coperto');
+      setCockpitText('cockpitNextCopy', 'Serve una riga diretta del dataset.');
+      var meterMissing = document.getElementById('cockpitMeter');
+      if (meterMissing) meterMissing.style.setProperty('--meter', '18%');
+      return;
+    }
+
+    var n = M.direct('n_matches');
+    var conf = confidence(n);
+    var wr = M.pair('winrate');
+    var diffWr = M.pair('diff_winrate');
+    var gold15 = seriesAtMinute(M, 'gold_diff_by_minute', 15);
+    var xp15 = seriesAtMinute(M, 'xp_diff_by_minute', 15);
+    var favored = wr[0] >= wr[1] ? champA : champB;
+    var edge = Math.abs((wr[0] || 0) - 0.5);
+    var meter = Math.max(22, Math.min(100, 44 + edge * 120 + (conf.level === 'high' ? 18 : conf.level === 'mid' ? 9 : -4)));
+    var meterEl = document.getElementById('cockpitMeter');
+    if (meterEl) meterEl.style.setProperty('--meter', meter.toFixed(0) + '%');
+
+    setCockpitText('cockpitTitle', favored + ' è il lato più forte.');
+    setCockpitText('cockpitCopy', champA + ' vs ' + champB + ' · ' + roleLabelText + '. Sintesi: edge diretto, timing @15, fiducia.');
+    setCockpitText('cockpitFocus', fmtPct(Math.max(wr[0], wr[1]), 1) + ' matchup · ' + fmtSignedPct(wr[0] >= wr[1] ? diffWr[0] : diffWr[1], 1) + ' vs baseline.');
+    setCockpitText('cockpitMethod', signedSideText(gold15, ' oro', 20) + ' · ' + signedSideText(xp15, ' XP', 20) + ' @15.');
+    setCockpitText('cockpitTrustTitle', conf.label);
+    setCockpitText('cockpitTrustCopy', fmtInt(n) + ' partite nel matchup. ' + (conf.level === 'low' ? 'Leggilo come segnale direzionale, non come certezza.' : 'Campione abbastanza stabile.'));
+    setCockpitText('cockpitNextTitle', 'Apri gli insight');
+    setCockpitText('cockpitNextCopy', 'Parti dai segnali con rilevanza più alta.');
+  }
+
 
   /* ------------------------------------------------------------------ *
    * Render principale
@@ -395,7 +500,8 @@
     if (!state.champA || !state.champB) {
       dossierEl.hidden = true;
       emptyEl.hidden = false;
-      emptyEl.innerHTML = '<h3>Seleziona due campioni</h3><p>Scegli un ruolo e due campioni per aprire il dossier completo del matchup.</p>';
+      emptyEl.innerHTML = '<h3>Nessun matchup attivo</h3><p>Il dossier compare quando A e B hanno una riga dati valida.</p>';
+      renderToolCockpit(null, null);
       return;
     }
 
@@ -407,13 +513,14 @@
       var sugg = opts.map(function (o) {
         return '<button class="chip" data-b="' + esc(o.value) + '">' + esc(o.value) + ' <span class="n">' + esc(o.meta) + '</span></button>';
       }).join('');
-      emptyEl.innerHTML = '<h3>Nessuna partita registrata</h3>' +
-        '<p>Non ci sono dati per <strong>' + esc(state.champA) + '</strong> contro <strong>' + esc(state.champB) + '</strong> nel ruolo ' + ROLE_LABELS[state.role] + '.' +
+      emptyEl.innerHTML = '<h3>Nessun dato diretto</h3>' +
+        '<p>Nessuna riga diretta per <strong>' + esc(state.champA) + '</strong> vs <strong>' + esc(state.champB) + '</strong> in ' + ROLE_LABELS[state.role] + '.' +
         (opts.length ? ' Avversari disponibili per ' + esc(state.champA) + ':' : '') + '</p>' +
         '<div class="suggestions">' + sugg + '</div>';
       emptyEl.querySelectorAll('.chip[data-b]').forEach(function (btn) {
         btn.addEventListener('click', function () { selectChampion('B', btn.getAttribute('data-b')); });
       });
+      renderToolCockpit(null, null);
       return;
     }
 
@@ -421,6 +528,7 @@
     dossierEl.hidden = false;
 
     var M = normalizeMatchup(rec, state.champA);
+    renderToolCockpit(M, rec);
 
     function safeRender(label, panelId, fn) {
       try {
@@ -1122,8 +1230,14 @@
    * Footer & avvio
    * ------------------------------------------------------------------ */
   function renderFooterStats() {
+    var total = DATA.meta.total_matchups;
+    var roles = Array.isArray(DATA.meta.roles) ? DATA.meta.roles.length : ROLE_ORDER.length;
+    var heroDataset = document.getElementById('heroDatasetCount');
+    var heroRoles = document.getElementById('heroRoleCount');
+    if (heroDataset) heroDataset.textContent = fmtInt(total);
+    if (heroRoles) heroRoles.textContent = fmtInt(roles);
     document.getElementById('footerStats').textContent =
-      fmtInt(DATA.meta.total_matchups) + ' matchup analizzati su 5 ruoli · ' +
+      fmtInt(total) + ' matchup analizzati su ' + fmtInt(roles) + ' ruoli · ' +
       fmtInt(DATA.meta.total_low_sample) + ' a campione ridotto (< ' + DATA.meta.min_matches_confident + ' partite)';
   }
 
@@ -1297,135 +1411,120 @@
     var gold15 = seriesAtMinute(M, 'gold_diff_by_minute', 15);
     var xp15 = seriesAtMinute(M, 'xp_diff_by_minute', 15);
     var exGold15 = seriesAtMinute(M, 'excess_gold_diff_by_minute', 15);
-    var exXp15 = seriesAtMinute(M, 'excess_xp_diff_by_minute', 15);
     var snow = snowballRead(M);
     var obj = objectiveEdge(M);
-    var level6 = null;
     var l6 = M.pair('avg_level6_minute');
-    if (isNum(l6[0]) && isNum(l6[1])) level6 = l6[0] - l6[1];
-    var vision = M.diffAB('vision_diff_a_minus_b');
-    var dmg = M.pair('avg_damage_to_champs');
-    var taken = M.pair('avg_damage_taken');
-    var cc = M.pair('avg_total_time_cc_dealt');
-    var goldDep = M.diffAB('goldxp_gold_dependency_diff_a_minus_b');
-    var xpDep = M.diffAB('goldxp_xp_dependency_diff_a_minus_b');
-    var insights = [];
+    var level6 = isNum(l6[0]) && isNum(l6[1]) ? l6[0] - l6[1] : null;
+    var items = [];
+
     function add(weight, tone, tag, title, body) {
       if (!body) return;
-      insights.push({ weight: weight, tone: tone || 'neutral', tag: tag, title: title, body: body });
+      items.push({ weight: weight, tone: tone || 'neutral', tag: tag, title: title, body: body });
+    }
+    function side(v, deadzone) {
+      var t = toneFromSigned(v, deadzone || 0);
+      return t === 'a' ? champA : (t === 'b' ? champB : 'nessuno');
+    }
+    function sameSign(a, b) {
+      return isNum(a) && isNum(b) && Math.abs(a) > 0.0001 && Math.abs(b) > 0.0001 && Math.sign(a) === Math.sign(b);
     }
 
     var wrEdge = isNum(wr[0]) ? wr[0] - 0.5 : null;
-    if (isNum(wrEdge) && Math.abs(wrEdge) >= 0.035) {
-      var side = wrEdge > 0 ? champA : champB;
-      add(95, wrEdge > 0 ? 'a' : 'b', 'Matchup', 'Vantaggio diretto a ' + side,
-        side + ' ha il segnale più netto sul winrate del matchup (' + fmtPct(Math.max(wr[0], wr[1]), 1) + '). Questo è il dato più immediato, ma va letto insieme a campione e dinamiche early.');
-    } else {
-      add(70, 'neutral', 'Matchup', 'Winrate quasi bilanciato', 'Il winrate diretto non separa chiaramente i due campioni: qui contano molto andamento early, snowball e profilo dei campioni.');
-    }
-
     var baseAdv = isNum(diff[0]) && isNum(diff[1]) ? diff[0] - diff[1] : null;
-    if (isNum(baseAdv) && Math.abs(baseAdv) >= 0.025) {
-      var sideBase = baseAdv > 0 ? champA : champB;
-      add(88, baseAdv > 0 ? 'a' : 'b', 'Baseline', sideBase + ' migliora di più rispetto al suo normale',
-        'Lo scarto dal winrate generale favorisce ' + sideBase + ' (' + fmtSignedPP(Math.abs(baseAdv), 1) + ' di differenza relativa tra i due profili). È un segnale più pulito del solo winrate, perché confronta il matchup con la baseline del campione.');
+    var conf = confidence(n);
+
+    if (conf.level === 'low') {
+      add(102, 'warning', 'Affidabilità', 'Campione corto: abbassa il peso del verdetto',
+        fmtInt(n) + ' partite. Uso pratico: considera validi soprattutto i segnali che concordano tra winrate, excess gold e snowball; se un dato resta isolato, trattalo come rumore direzionale.');
+    } else if (isNum(n)) {
+      add(conf.level === 'high' ? 76 : 66, conf.level === 'high' ? 'info' : 'warning', 'Affidabilità', conf.label,
+        fmtInt(n) + ' partite dirette. Uso pratico: il verdetto può essere letto come base stabile, ma va ancora controllato contro timing e baseline.');
     }
 
-    if (isNum(gold15) && Math.abs(gold15) >= 450) {
-      var sideGold = gold15 > 0 ? champA : champB;
-      add(86, gold15 > 0 ? 'a' : 'b', 'Early gold', sideGold + ' tende a uscire meglio dai primi 15 minuti',
-        'Il differenziale medio è circa +' + fmtInt(Math.abs(gold15)) + ' oro al 15°. È un segnale concreto di pressione, recall migliori o wave state più favorevole.');
+    if (sameSign(wrEdge, baseAdv) && Math.abs(wrEdge) >= 0.035 && Math.abs(baseAdv) >= 0.02) {
+      add(98, toneFromSigned(wrEdge, 0), 'Convergenza', side(wrEdge) + ' ha un edge pulito',
+        'Winrate diretto (' + fmtPct(Math.max(wr[0], wr[1]), 1) + ') e scarto vs baseline (' + fmtSignedPP(baseAdv, 1) + ') puntano dallo stesso lato. È il segnale più affidabile perché non dipende solo dalla forza media del campione.');
+    } else if (isNum(wrEdge) && Math.abs(wrEdge) >= 0.045) {
+      add(88, toneFromSigned(wrEdge, 0), 'Matchup', side(wrEdge) + ' ha il vantaggio diretto',
+        'Il winrate separa i due lati (' + fmtPct(Math.max(wr[0], wr[1]), 1) + '), ma va controllato contro baseline ed early: se non concordano, l’edge è meno pulito.');
+    } else {
+      add(62, 'neutral', 'Equilibrio', 'Il winrate non basta a decidere',
+        'La lettura utile si sposta su timing: oro/XP @15, snowball e obiettivi hanno più valore del numero centrale.');
     }
-    if (isNum(exGold15) && Math.abs(exGold15) >= 250) {
-      var sideEx = exGold15 > 0 ? champA : champB;
-      add(82, exGold15 > 0 ? 'a' : 'b', 'Excess gold', 'Il matchup batte la baseline per ' + sideEx,
-        'L’excess gold al 15° è +' + fmtInt(Math.abs(exGold15)) + ': non è solo forza generale del campione, ma un segnale specifico di questa coppia di campioni.');
+
+    if (isNum(gold15) && isNum(exGold15)) {
+      if (Math.abs(gold15) >= 420 && Math.abs(exGold15) >= 260 && sameSign(gold15, exGold15)) {
+        add(94, toneFromSigned(gold15, 0), 'Economia pulita', side(gold15) + ' crea vantaggio specifico',
+          'Oro @15 (' + fmtSigned(gold15, 0, '') + ') ed excess gold (' + fmtSigned(exGold15, 0, '') + ') concordano. Non è solo baseline: il matchup stesso sembra produrre pressione reale.');
+      } else if (Math.abs(gold15) >= 420 && Math.abs(exGold15) < 180) {
+        add(84, toneFromSigned(gold15, 0), 'Economia sporca', 'Il gold lead è meno matchup-specifico',
+          side(gold15) + ' ha oro @15, ma l’excess è basso: parte del vantaggio può venire dal profilo naturale del campione, non dall’interazione diretta.');
+      } else if (Math.abs(exGold15) >= 300 && Math.abs(gold15) < 360) {
+        add(86, toneFromSigned(exGold15, 0), 'Segnale nascosto', 'Il matchup conta più del gold grezzo',
+          'Il gold totale sembra vicino, ma l’excess gold favorisce ' + side(exGold15) + ': rispetto alla baseline, questa coppia sta spostando più di quanto il numero grezzo mostri.');
+      }
     }
-    if (isNum(gold15) && isNum(exGold15) && Math.abs(gold15) >= 400 && Math.abs(exGold15) < 180) {
-      add(76, toneFromSigned(gold15, 0), 'Lettura', 'Vantaggio più strutturale che specifico',
-        'Il gold reale è visibile, ma l’excess gold è contenuto: parte del vantaggio sembra venire dalla forza media del campione, non solo dall’interazione del matchup.');
-    }
-    if (isNum(gold15) && isNum(exGold15) && Math.abs(exGold15) >= 300 && Math.abs(gold15) < 350) {
-      add(78, toneFromSigned(exGold15, 0), 'Lettura', 'Matchup più importante di quanto sembri dal gold grezzo',
-        'Il gold reale è quasi pari, ma l’excess gold è marcato: la corsia sta performando meglio/peggio rispetto a ciò che ci si aspetterebbe dalla baseline dei campioni.');
+
+    if (snow && snow.sensitivity >= 0.14) {
+      var tSnow = snowballTier(snow.sensitivity);
+      var aheadSide = isNum(snow.aheadPct) && Math.abs(snow.aheadPct - 0.5) >= 0.06 ? (snow.aheadPct > 0.5 ? champA : champB) : null;
+      add(snow.sensitivity >= 0.22 ? 96 : 89, tSnow.cls, 'Snowball', 'La corsia punisce il primo errore',
+        'Il gap avanti/indietro @15 è ' + fmtPP(snow.sensitivity, 1) + '. ' + (aheadSide ? aheadSide + ' è più spesso avanti al 15°, quindi quel dato pesa molto.' : 'Non assegna da solo il lato: dice che gestione wave, reset e jungle pressure valgono più del solito.'));
     }
 
     if (isNum(xp15) && Math.abs(xp15) >= 420) {
-      var sideXp = xp15 > 0 ? champA : champB;
-      add(72, xp15 > 0 ? 'a' : 'b', 'XP tempo', sideXp + ' ha più accesso a tempo e livelli',
-        'Il vantaggio XP al 15° è circa +' + fmtInt(Math.abs(xp15)) + '. Può contare più del gold se il matchup dipende da spike di livello, wave control o all-in.');
+      add(78, toneFromSigned(xp15, 0), 'Timing XP', side(xp15) + ' gioca meglio sugli spike',
+        'XP @15: ' + fmtSigned(xp15, 0, '') + '. Se il matchup dipende da livello 6, wave tempo o all-in, questo può pesare più del gold.');
     }
     if (isNum(level6) && Math.abs(level6) >= 0.25) {
       var sideL6 = level6 < 0 ? champA : champB;
-      add(68, level6 < 0 ? 'a' : 'b', 'Livello 6', sideL6 + ' arriva prima al primo power spike',
-        'La differenza media è circa ' + fmtDec(Math.abs(level6), 2) + ' minuti. In lane con ultimate decisive, questo cambia finestre di trade e possibilità di setup.');
-    }
-
-    if (snow) {
-      var tier = snowballTier(snow.sensitivity);
-      if (snow.sensitivity >= 0.16) {
-        add(90, tier.cls, 'Snowball', 'Corsia a sensibilità snowball ' + tier.label,
-          'Il gap tra winrate quando avanti e quando indietro al 15° è di ' + fmtPP(snow.sensitivity, 1) + '. Questo non favorisce automaticamente un team: indica quanto è costoso perdere il controllo early.');
-      }
-      if (isNum(snow.aheadPct) && Math.abs(snow.aheadPct - 0.5) >= 0.08) {
-        var sideAhead = snow.aheadPct > 0.5 ? champA : champB;
-        add(80, snow.aheadPct > 0.5 ? 'a' : 'b', 'Primo vantaggio', sideAhead + ' tende a essere avanti al 15°',
-          sideAhead + ' è avanti al 15° nel ' + fmtPct(Math.max(snow.aheadPct, 1 - snow.aheadPct), 1) + ' delle partite. Se la sensibilità snowball è alta, questo segnale pesa molto di più.');
-      }
-    }
-
-    if (isNum(M.direct('gold_diff_std_15m')) && M.direct('gold_diff_std_15m') >= 900) {
-      add(74, 'warning', 'Volatilità', 'Matchup instabile',
-        'La deviazione standard del gold al 15° è alta (' + fmtInt(M.direct('gold_diff_std_15m')) + '). La corsia può aprirsi in modi molto diversi: attenzione a sample, matchup execution e jungle pressure.');
+      add(72, level6 < 0 ? 'a' : 'b', 'Livello 6', sideL6 + ' apre prima la finestra ultimate',
+        'Differenza media: ' + fmtDec(Math.abs(level6), 2) + ' min. È una finestra tattica, non una statistica decorativa.');
     }
 
     if (obj && Math.abs(obj.edge) >= 0.07) {
-      var sideObj = obj.edge > 0 ? champA : champB;
-      add(70, obj.edge > 0 ? 'a' : 'b', state.role === 'JUNGLE' ? 'Obiettivi' : 'Torri', sideObj + ' ha il segnale migliore su ' + obj.label.toLowerCase(),
-        obj.label + ' favorisce ' + sideObj + ' nel ' + fmtPct(Math.max(obj.pct, 1 - obj.pct), 1) + ' dei casi. È utile soprattutto se il game plan ruota attorno a priorità e primi obiettivi.');
+      add(74, toneFromSigned(obj.edge, 0), state.role === 'JUNGLE' ? 'Obiettivi' : 'Torri', side(obj.edge) + ' converte meglio la prima mappa',
+        obj.label + ': ' + fmtPct(Math.max(obj.pct, 1 - obj.pct), 1) + '. Questo conta solo se il piano gioca davvero per priorità, non per scaling passivo.');
     }
 
-    if (isNum(vision) && Math.abs(vision) >= 2.5) {
-      var sideVision = vision > 0 ? champA : champB;
-      add(58, vision > 0 ? 'a' : 'b', 'Visione', sideVision + ' contribuisce di più al controllo mappa',
-        'Il differenziale medio di vision score è +' + fmtDec(Math.abs(vision), 1) + '. Non decide la lane da solo, ma aiuta setup, tracciamento e sicurezza sulle giocate.');
+    if (isNum(baseAdv)) {
+      add(63, toneFromSigned(baseAdv, 0.01), 'Baseline', 'Quanto è reale l’edge rispetto al campione',
+        'Scarto comparato tra baseline dei due lati: ' + fmtSignedPP(baseAdv, 1) + '. Uso pratico: se baseline e winrate diretto vanno insieme, l’edge è pulito; se divergono, guarda prima excess e timing.');
     }
-    if (isNum(cc[0]) && isNum(cc[1]) && Math.abs(cc[0] - cc[1]) >= 4) {
-      var sideCc = cc[0] > cc[1] ? champA : champB;
-      add(57, cc[0] > cc[1] ? 'a' : 'b', 'Controllo', sideCc + ' offre più CC medio',
-        'Il profilo di controllo è più alto di circa ' + fmtDec(Math.abs(cc[0] - cc[1]), 1) + 's. Può pesare nelle lane dove gank setup o all-in sono centrali.');
-    }
-    if (isNum(dmg[0]) && isNum(dmg[1]) && Math.abs(dmg[0] - dmg[1]) >= 2500) {
-      var sideDmg = dmg[0] > dmg[1] ? champA : champB;
-      add(54, dmg[0] > dmg[1] ? 'a' : 'b', 'Danno', sideDmg + ' ha output medio più alto',
-        'Il differenziale medio di danno ai campioni è circa +' + fmtInt(Math.abs(dmg[0] - dmg[1])) + '. È un segnale di presenza nei fight, non necessariamente di vantaggio in lane.');
-    }
-    if (isNum(taken[0]) && isNum(taken[1]) && Math.abs(taken[0] - taken[1]) >= 2500) {
-      var sideTank = taken[0] > taken[1] ? champA : champB;
-      add(48, taken[0] > taken[1] ? 'a' : 'b', 'Durabilità', sideTank + ' assorbe più risorse',
-        'Il danno subito medio è più alto di circa ' + fmtInt(Math.abs(taken[0] - taken[1])) + '. Può indicare frontline, esposizione o pattern di fight più prolungati.');
+    if (isNum(gold15) || isNum(xp15)) {
+      add(62, toneFromSigned(isNum(gold15) && Math.abs(gold15) >= Math.abs(xp15 || 0) ? gold15 : xp15, 0), 'Timing @15', 'La lane ha una forma leggibile al minuto 15',
+        'Oro: ' + signedSideText(gold15, ' oro', 20) + ' · XP: ' + signedSideText(xp15, ' XP', 20) + '. Uso pratico: questo dice se il matchup crea una finestra di pressione prima del mid game.');
     }
 
-    if ((isNum(goldDep) && Math.abs(goldDep) >= 1.5) || (isNum(xpDep) && Math.abs(xpDep) >= 1.5)) {
-      var score = (isNum(goldDep) ? goldDep : 0) + (isNum(xpDep) ? xpDep : 0);
-      var sideDep = score > 0 ? champA : champB;
-      add(52, score > 0 ? 'a' : 'b', 'Conversione risorse', sideDep + ' converte meglio risorse in vittoria',
-        'Le dipendenze oro/XP indicano maggiore sensibilità alle risorse. Questo non è winrate: misura quanto un vantaggio economico tende a tradursi in esito positivo.');
+    var ranked = items.sort(function (a, b) { return b.weight - a.weight; });
+    var relevant = ranked.filter(function (it) { return it.weight >= 61; });
+    var selected = relevant.length ? relevant.slice() : ranked.slice();
+    if (selected.length < 3) {
+      ranked.forEach(function (it) {
+        if (selected.length >= 3) return;
+        if (selected.indexOf(it) === -1) selected.push(it);
+      });
     }
+    return selected;
+  }
 
-    if (confidence(n).level === 'low') {
-      add(100, 'warning', 'Affidabilità', 'Campione ridotto',
-        'Ci sono solo ' + fmtInt(n) + ' partite osservate. Il dato è utile, ma non conclusivo: dai più peso ai segnali concordanti e meno ai singoli picchi.');
-    }
-
-    return insights.sort(function (a, b) { return b.weight - a.weight; }).slice(0, 8);
+  function insightRelevance(weight) {
+    if (weight >= 94) return { label: 'Rilevanza molto alta', cls: 'very-high' };
+    if (weight >= 82) return { label: 'Rilevanza alta', cls: 'high' };
+    if (weight >= 66) return { label: 'Rilevanza media', cls: 'medium' };
+    return { label: 'Rilevanza bassa', cls: 'low' };
   }
 
   function insightCardsHtml(M) {
     var items = buildInsightCards(M);
     return '<div class="insight-grid">' + items.map(function (it) {
+      var rel = insightRelevance(it.weight);
       return '<article class="insight-card ' + it.tone + '">' +
-        '<div class="insight-tag">' + esc(it.tag) + '</div>' +
+        '<div class="insight-top">' +
+          '<span class="insight-tag">' + esc(it.tag) + '</span>' +
+          '<span class="insight-separator" aria-hidden="true"></span>' +
+          '<span class="insight-impact ' + rel.cls + '">' + esc(rel.label) + '</span>' +
+        '</div>' +
         '<h4>' + esc(it.title) + '</h4>' +
         '<p>' + esc(it.body) + '</p>' +
       '</article>';
@@ -1482,7 +1581,7 @@
     html += '<div class="v2-kpi ' + tier.cls + '"><span>Snowball</span><strong>' + (snow ? fmtPP(snow.sensitivity, 1) : '—') + '</strong><em>' + esc(tier.label) + '</em></div>';
     if (obj) html += '<div class="v2-kpi ' + toneFromSigned(obj.edge, 0.02) + '"><span>' + esc(obj.label) + '</span><strong>' + fmtPct(Math.max(obj.pct, 1 - obj.pct), 1) + '</strong><em>' + esc(sideName(toneFromSigned(obj.edge, 0.02))) + '</em></div>';
     html += '</div>';
-    html += '<div class="v2-hero-insights"><div class="card-head"><h3>Insight prioritari</h3><span class="card-sub">Consigli ordinati per peso interpretativo, non per rumore numerico.</span></div>' + insightCardsHtml(M) + '</div>';
+    html += '<div class="v2-hero-insights"><div class="card-head"><h3>Insight decisivi</h3><span class="card-sub">Solo segnali con peso reale: convergenza, timing, snowball o rischio dato.</span></div>' + insightCardsHtml(M) + '</div>';
     html += '</section>';
     document.getElementById('verdictBand').innerHTML = html;
   }
@@ -1708,12 +1807,7 @@
     renderGlossary();
     renderFooterStats();
 
-    var best = null;
-    ROLE_ORDER.forEach(function (r) {
-      var top = DATA.meta.top_matchups_by_role[r] && DATA.meta.top_matchups_by_role[r][0];
-      if (top && (!best || top.n > best.n)) best = { role: r };
-    });
-    var startRole = (best && best.role) || DATA.meta.roles[0];
+    var startRole = (Array.isArray(DATA.meta.roles) && DATA.meta.roles[0]) || ROLE_ORDER[0];
     setRole(startRole);
     setDataStatus('ready', 'Dataset pronto');
   }

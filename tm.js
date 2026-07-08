@@ -118,6 +118,15 @@
     return Number.isFinite(n) ? n : null;
   }
 
+  function pulseMotion(el, cls = 'is-spinning') {
+    if (!el) return;
+    el.classList.remove(cls);
+    // Force reflow so repeated clicks replay the same motion consistently.
+    void el.offsetWidth;
+    el.classList.add(cls);
+    window.setTimeout(() => el.classList.remove(cls), 620);
+  }
+
   function isFiniteNumber(value) {
     return safeNumber(value) !== null;
   }
@@ -702,7 +711,7 @@
     if (!hasAnyPair) {
       byId('analysisRegion').hidden = true;
       byId('emptyState').hidden = false;
-      byId('emptyState').textContent = 'Seleziona almeno una coppia di campioni nella stessa corsia per iniziare.';
+      byId('emptyState').textContent = 'Seleziona almeno una corsia completa.';
       return null;
     }
 
@@ -761,7 +770,7 @@
       add(
         'Driver',
         `${componentLabels[topComponent.id] || topComponent.id} è il segnale più pesante`,
-        `${side} non emerge da una singola statistica isolata: il driver più forte dell’indice è ${componentLabels[topComponent.id] || topComponent.id}. Usalo come priorità di lettura, non come probabilità di vittoria.`,
+        `${side} non emerge da una singola statistica isolata: il driver più forte dell’indice è ${componentLabels[topComponent.id] || topComponent.id}. È il filtro principale: gli altri dati vanno usati per confermarlo o smentirlo.`,
         98,
         toneFromValue(topComponent.value),
         'Molto alto'
@@ -782,7 +791,7 @@
       add(
         'Lane plan',
         `${roleLabel(topLane.lane.role)} è la corsia da pesare di più`,
-        `${side} ha il vantaggio più netto in ${roleLabel(topLane.lane.role)}. ${status} È la lane che più probabilmente deve guidare il piano iniziale o ricevere copertura se il game si apre lì.`,
+        `${side} ha il vantaggio più netto in ${roleLabel(topLane.lane.role)}. ${status} È la corsia che merita risorse, copertura o un piano di isolamento: se viene ignorata, il draft perde coerenza.`,
         96,
         toneFromValue(topLane.score),
         'Molto alto'
@@ -798,7 +807,7 @@
       add(
         'Mappa',
         `${side} può giocare da più corsie`,
-        `${group.slice(0, 3).map((x) => roleLabel(x.lane.role)).join(', ')} mostrano segnali coerenti per ${side}. Questo pesa più di una singola lane forte: permette piani con pressione incrociata invece di dipendere da un solo matchup.`,
+        `${group.slice(0, 3).map((x) => roleLabel(x.lane.role)).join(', ')} mostrano segnali coerenti per ${side}. Questo è più stabile di una singola lane forte: apre pressione incrociata e riduce dipendenza da un solo matchup.`,
         91,
         group === t1Strong ? 'team-a' : 'team-b',
         'Alto'
@@ -807,7 +816,7 @@
       add(
         'Mappa',
         'Il game sembra diviso per corsie',
-        `${roleLabel(t1Strong[0].lane.role)} tende verso Team 1, mentre ${roleLabel(t2Strong[0].lane.role)} tende verso Team 2. In questo scenario conta molto dove viene giocato il primo movimento: il draft non indica una sola direzione naturale.`,
+        `${roleLabel(t1Strong[0].lane.role)} tende verso Team 1, mentre ${roleLabel(t2Strong[0].lane.role)} tende verso Team 2. Qui il primo movimento decide la mappa: il draft non ha una sola direzione naturale.`,
         88,
         'info',
         'Alto'
@@ -826,7 +835,7 @@
         add(
           'Snowball',
           `${roleLabel(snow.lane.role)} ha la sensibilità snowball più alta`,
-          `Il gap tra winrate quando avanti e quando indietro @15 è ${formatPpAbs(sensitivity)}. ${sideCopy} Questa è la corsia dove protezione, wave state e primo reset possono valere più di una piccola differenza di winrate.`,
+          `Il gap tra winrate quando avanti e quando indietro @15 è ${formatPpAbs(sensitivity)}. ${sideCopy} Qui wave state, primo reset e copertura valgono più di una piccola differenza di winrate.`,
           sensitivity >= 0.22 ? 97 : 90,
           snowballToneClass(sensitivity),
           sensitivity >= 0.22 ? 'Molto alto' : 'Alto'
@@ -854,7 +863,7 @@
         add(
           'Excess',
           'Il vantaggio economico è confermato dall’excess gold',
-          `${sideFromValue(excess)} non è avanti solo perché i suoi campioni tendono naturalmente a generare più oro: l’excess va nella stessa direzione del gold diff. Questo rende il segnale più interessante per il piano matchup.`,
+          `${sideFromValue(excess)} non è avanti solo perché i suoi campioni tendono naturalmente a generare più oro: l’excess va nella stessa direzione del gold diff. Questo rende il segnale più pulito: il matchup sta aggiungendo valore reale, non solo baseline.`,
           84,
           toneFromValue(excess),
           'Medio-alto'
@@ -863,7 +872,7 @@
         add(
           'Excess',
           'Oro grezzo ed excess raccontano due cose diverse',
-          `${sideFromValue(gold15)} ha il gold diff grezzo, ma l’excess non lo conferma. Questo suggerisce cautela: parte del vantaggio potrebbe dipendere dalla baseline dei campioni più che dal matchup specifico.`,
+          `${sideFromValue(gold15)} ha il gold diff grezzo, ma l’excess non lo conferma. Segnale da pesare con cautela: il vantaggio può essere più champion-profile che matchup-specific.`,
           89,
           'warning',
           'Alto'
@@ -876,7 +885,7 @@
       add(
         'Tempo',
         `${sideFromValue(xp15)} ha un segnale XP utile per i timing`,
-        `Il vantaggio XP aggregato @15 (${intFmt(xp15)}) non equivale automaticamente a vittoria, ma può cambiare finestre di fight, livello 6 e priorità sugli obiettivi. Cercare fight prima o dopo questi spike è più importante del numero grezzo.`,
+        `Il vantaggio XP aggregato @15 (${intFmt(xp15)}) non equivale automaticamente a vittoria, ma può cambiare finestre di fight, livello 6 e priorità sugli obiettivi. Il punto non è il numero: è giocare prima o dopo quegli spike.`,
         78,
         toneFromValue(xp15),
         'Medio'
@@ -901,7 +910,7 @@
       add(
         'Volatilità',
         `${roleLabel(volatile.role)} è la corsia più instabile`,
-        `La deviazione standard del gold diff @15 è ${compactNumber(volatileStd)}: in questa lane lo stesso matchup tende ad aprirsi in modi molto diversi. È un segnale per non pianificare tutto su uno script rigido.`,
+        `La deviazione standard del gold diff @15 è ${compactNumber(volatileStd)}: in questa lane lo stesso matchup tende ad aprirsi in modi molto diversi. Non pianificare uno script rigido: questa lane cambia forma molto spesso.`,
         74,
         'warning',
         'Medio'
@@ -980,7 +989,7 @@
       add(
         'Affidabilità',
         `${lowRoles.join(', ')} ${lowRoles.length === 1 ? 'ha' : 'hanno'} campione ridotto`,
-        'Il dato resta utile per orientarsi, ma non dovrebbe essere il driver principale del piano. Se un insight dipende proprio da queste corsie, va declassato di priorità.',
+        'Il dato resta leggibile, ma va declassato: un insight fondato su queste corsie pesa meno.',
         58,
         'warning',
         'Medio-basso'
@@ -991,9 +1000,17 @@
       add('Sintesi', 'Nessun segnale domina davvero il draft', 'La lettura resta distribuita: non c’è una corsia, risorsa o categoria che separi nettamente i team. In questo caso conviene usare la pagina per individuare rischi specifici, non per cercare un verdetto forte.', 50, 'info', 'Medio');
     }
 
-    return items
-      .sort((a, b) => b.priority - a.priority)
-      .slice(0, 12);
+    const ranked = items
+      .sort((a, b) => b.priority - a.priority);
+    const relevant = ranked.filter((item) => item.priority >= 61 || item.impact === 'Molto alto' || item.impact === 'Alto');
+    const selected = relevant.length ? [...relevant] : [...ranked];
+    if (selected.length < 4) {
+      ranked.forEach((item) => {
+        if (selected.length >= 4) return;
+        if (!selected.includes(item)) selected.push(item);
+      });
+    }
+    return selected;
   }
 
   function impactLabel(priority) {
@@ -1889,19 +1906,36 @@
       activeIndex = -1;
     }
 
-    input.addEventListener('input', () => {
-      const exact = options.find((champ) => champ.toLowerCase() === input.value.trim().toLowerCase());
-      if (!input.value.trim()) {
+    function normalizeTypedValue() {
+      const typed = input.value.trim();
+      if (!typed) {
         delete selectedMap()[role];
+        input.value = '';
         updateCounts();
-      } else if (exact) {
-        selectedMap()[role] = exact;
-        updateCounts();
+        return;
       }
+      const exact = options.find((champ) => champ.toLowerCase() === typed.toLowerCase());
+      if (exact) {
+        selectedMap()[role] = exact;
+        input.value = exact;
+      } else {
+        delete selectedMap()[role];
+      }
+      updateCounts();
+    }
+
+    input.addEventListener('input', () => {
+      normalizeTypedValue();
       render(input.value);
     });
 
     input.addEventListener('focus', () => render(input.value));
+    input.addEventListener('blur', () => {
+      window.setTimeout(() => {
+        normalizeTypedValue();
+        if (!selectedMap()[role]) input.value = '';
+      }, 80);
+    });
 
     input.addEventListener('keydown', (event) => {
       if (!list.classList.contains('open') && ['ArrowDown', 'ArrowUp'].includes(event.key)) {
@@ -1960,7 +1994,7 @@
     return `
       <div class="combo-option ${active ? 'active' : ''}" role="option" data-champion="${esc(champion)}">
         <span>${esc(champion)}</span>
-        <span class="meta">pick</span>
+        <span class="meta">seleziona</span>
       </div>
     `;
   }
@@ -2033,14 +2067,33 @@
     syncInputsFromState();
     byId('analysisRegion').hidden = true;
     byId('emptyState').hidden = false;
-    byId('emptyState').textContent = 'Seleziona almeno una coppia di campioni nella stessa corsia per iniziare.';
+    byId('emptyState').textContent = 'Seleziona almeno una corsia completa.';
   }
 
   function bindActions() {
-    byId('sampleDraftBtn')?.addEventListener('click', setSampleDraft);
-    byId('swapTeamsBtn')?.addEventListener('click', swapTeams);
+    
+    byId('swapTeamsBtn')?.addEventListener('click', () => {
+      pulseMotion(byId('swapTeamsBtn'));
+      swapTeams();
+    });
     byId('clearDraftBtn')?.addEventListener('click', clearDraft);
     byId('analyzeDraftBtn')?.addEventListener('click', analyzeDraft);
+    bindTabs();
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Tab (identica alla logica di app.js, per coerenza tra le due pagine)
+   * ------------------------------------------------------------------ */
+  function bindTabs() {
+    const bar = byId('tabBar');
+    if (!bar) return;
+    bar.addEventListener('click', function (e) {
+      var btn = e.target.closest('.tab-btn');
+      if (!btn) return;
+      var tab = btn.getAttribute('data-tab');
+      document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('active', b === btn); });
+      document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.toggle('active', p.id === 'panel-' + tab); });
+    });
   }
 
   function setDataStatus(type, text) {
@@ -2057,7 +2110,7 @@
     if (heroDataset) heroDataset.textContent = total ? Math.round(total).toLocaleString('it-IT') : '—';
     const heroRoles = byId('heroRoleCount');
     if (heroRoles) heroRoles.textContent = roleOrder().length;
-    byId('footerStats').textContent = `Team Draft Lab · ${total ? Math.round(total).toLocaleString('it-IT') : '—'} matchup disponibili`;
+    byId('footerStats').textContent = `Team DraftLab · ${total ? Math.round(total).toLocaleString('it-IT') : '—'} matchup disponibili`;
   }
 
   function countCanonicalMatchups() {
@@ -2079,7 +2132,7 @@
 
   function init() {
     if (!DATA || !DATA.matchups || !DATA.matchupColumns) {
-      fail('Dataset non disponibile: impossibile inizializzare Team Draft Lab.');
+      fail('Dataset non disponibile: impossibile inizializzare Team DraftLab.');
       return;
     }
     setDataStatus('ready', 'Dataset pronto');
