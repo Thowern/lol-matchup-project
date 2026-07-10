@@ -360,6 +360,8 @@
       comboB.setEnabled(true, 'Cerca l\'avversario…');
       comboB.clear();
       render();
+      var comboBInput = document.getElementById('comboB')?.querySelector('input');
+      if (comboBInput) comboBInput.focus();
     } else {
       state.champB = name;
       render();

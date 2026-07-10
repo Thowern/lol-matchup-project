@@ -250,7 +250,13 @@
     const fromMeta = DATA?.meta?.roles_champions?.[role]
       || DATA?.meta?.rolesChampions?.[role]
       || DATA?.championsByRole?.[role];
-    if (Array.isArray(fromMeta) && fromMeta.length) return [...fromMeta].sort(localeSort);
+    if (Array.isArray(fromMeta) && fromMeta.length) {
+      return [...fromMeta].sort((a, b) => {
+        const pa = DATA?.championProfiles?.[role]?.[a]?.coverage?.total_games || 0;
+        const pb = DATA?.championProfiles?.[role]?.[b]?.coverage?.total_games || 0;
+        return pb - pa || localeSort(a, b);
+      });
+    }
 
     const names = new Set();
     Object.keys(DATA?.championProfiles?.[role] || {}).forEach((name) => names.add(name));
@@ -1881,14 +1887,32 @@
       close();
       updateCounts();
       if (state.lastAnalysis) analyzeDraft();
+      if (team === 1) {
+        const nextBox = document.querySelector(`.team-combobox[data-role="${role}"][data-team="2"]`);
+        const nextInput = nextBox?.querySelector('input');
+        if (nextInput) nextInput.focus();
+      }
     }
 
     function render(query = '') {
       const q = query.trim().toLowerCase();
+      const oppositeChampion = team === 1 ? state.team2[role] : state.team1[role];
+      const topOpponents = !q && oppositeChampion ? topOpponentsForChampion(role, oppositeChampion) : [];
+      const topOpponent = topOpponents.find((item) => item.champ !== oppositeChampion)?.champ || null;
+
       visible = options
+        .filter((champ) => champ !== oppositeChampion)
         .map((champ) => ({ champ, score: scoreChampion(champ, q) }))
         .filter((item) => !q || item.score > 0)
-        .sort((a, b) => b.score - a.score || localeSort(a.champ, b.champ))
+        .sort((a, b) => {
+          const scoreDelta = b.score - a.score;
+          if (scoreDelta !== 0) return scoreDelta;
+          if (!q && topOpponent) {
+            if (a.champ === topOpponent) return -1;
+            if (b.champ === topOpponent) return 1;
+          }
+          return q ? localeSort(a.champ, b.champ) : 0;
+        })
         .slice(0, 80)
         .map((item) => item.champ);
 
@@ -2052,12 +2076,13 @@
     return rows.sort((x, y) => y.n_matches - x.n_matches).slice(0, 12);
   }
 
-  function swapTeams() {
-    const old1 = { ...state.team1 };
-    state.team1 = { ...state.team2 };
-    state.team2 = old1;
-    syncInputsFromState();
-    if (state.lastAnalysis) analyzeDraft();
+  function topOpponentsForChampion(role, champion) {
+    const opponents = matchupsForRole(role)[champion] || {};
+    const rows = Object.entries(opponents).map(([opp, values]) => {
+      const raw = objectFromColumns(DATA?.matchupColumns, values);
+      return { champ: opp, n_matches: safeNumber(raw?.n_matches) ?? 0 };
+    });
+    return rows.sort((a, b) => b.n_matches - a.n_matches);
   }
 
   function clearDraft() {
