@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Team DraftLab — Matchup Intelligence</title>
+<title>Rankings Lab — Classifiche e Counter</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -2430,274 +2430,255 @@ summary::marker { color:var(--champ-a); }
   .combat-pill-grid { grid-template-columns:1fr 1fr; }
   .combat-band, .combat-team-card, .combat-summary-card { padding:15px; }
 }
-</style></style>
+</style>
 
 <style>
-/* Rankings Lab navigation patch */
+/* ========================================================================== 
+   RANKINGS LAB — third module, same visual language
+   ========================================================================== */
 .topbar-inner{grid-template-columns:260px minmax(480px,1fr) 230px!important}
 .nav-links{grid-template-columns:repeat(3,minmax(130px,1fr))!important;width:min(100%,530px)!important}
-@media(max-width:980px){.topbar-inner{grid-template-columns:1fr!important}.nav-links{grid-template-columns:repeat(3,minmax(0,1fr))!important;width:100%!important}}
-@media(max-width:620px){.nav-link{font-size:8px!important;padding-inline:4px!important}}
+.rankings-shell{padding-bottom:var(--space-11)}
+.rankings-hero .hero-card{grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:var(--space-7)}
+.rankings-hero .hero-side{display:grid;gap:var(--space-3)}
+.hero-mini-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.rankings-console{position:relative;z-index:12;margin-top:var(--space-6);padding:var(--space-6);border:1px solid var(--line);border-radius:var(--radius-xl);background:linear-gradient(145deg,var(--surface-2),var(--surface-1));box-shadow:var(--shadow-card)}
+.rankings-console::before{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;background:radial-gradient(650px 280px at 12% 0%,var(--champ-a-faint),transparent 68%),radial-gradient(650px 280px at 90% 0%,var(--champ-b-faint),transparent 68%)}
+.rankings-console>*{position:relative;z-index:1}
+.console-head{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-5);margin-bottom:var(--space-5)}
+.console-head h2{font-size:clamp(26px,3vw,38px)}
+.console-head p{max-width:760px;margin-top:6px}
+.mode-switch{display:inline-grid;grid-template-columns:repeat(2,minmax(150px,1fr));gap:6px;padding:6px;border:1px solid var(--line);border-radius:var(--radius-pill);background:oklch(0% 0 0/.18)}
+.mode-btn{appearance:none;min-height:42px;padding:0 18px;border:1px solid transparent;border-radius:var(--radius-pill);color:var(--ink-dim);background:transparent;cursor:pointer;font-family:var(--font-mono);font-size:10.5px;font-weight:850;letter-spacing:.07em;text-transform:uppercase;transition:all var(--duration-fast) var(--ease)}
+.mode-btn:hover{color:var(--ink);background:var(--surface-2)}
+.mode-btn.active{color:var(--champ-a);border-color:var(--champ-a-line);background:linear-gradient(180deg,var(--champ-a-soft),var(--surface-2));box-shadow:0 8px 22px oklch(0% 0 0/.18)}
+.rank-role-pills{display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-5)}
+.rank-role-pills .role-pill{appearance:none;display:inline-flex;align-items:center;justify-content:center;min-width:100px;min-height:40px;padding:0 15px;border:1px solid var(--line);border-radius:var(--radius-pill);color:var(--ink-dim);background:linear-gradient(180deg,var(--surface-2),var(--surface-1));cursor:pointer;font-family:var(--font-mono);font-size:10px;font-weight:850;letter-spacing:.07em;text-transform:uppercase;box-shadow:0 1px 0 oklch(100% 0 0/.04) inset,0 8px 22px oklch(0% 0 0/.18)}
+.rank-role-pills .role-pill:hover{color:var(--ink);border-color:var(--line-strong);transform:translateY(-1px)}
+.rank-role-pills .role-pill.active{color:var(--champ-a)!important;border-color:var(--champ-a-line)!important;background:linear-gradient(180deg,var(--champ-a-soft),var(--surface-1))!important;box-shadow:0 0 0 1px var(--champ-a-faint),0 0 30px var(--champ-a-faint),0 12px 34px oklch(0% 0 0/.22)!important}
+.filter-grid{position:relative!important;z-index:30!important;display:grid;grid-template-columns:minmax(210px,1.1fr) minmax(210px,1.1fr) minmax(280px,1.35fr);gap:var(--space-4);align-items:end}
+.filter-field{display:grid;gap:8px;min-width:0}
+.filter-field>label,.filter-label{color:var(--ink-faint);font-family:var(--font-mono);font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.control-input,.control-select{width:100%;min-height:48px;padding:0 15px;border:1px solid var(--line);border-radius:var(--radius-sm);outline:none;color:var(--ink);background:linear-gradient(180deg,var(--surface-2),var(--surface-1));box-shadow:0 1px 0 oklch(100% 0 0/.04) inset;transition:border-color var(--duration-fast) var(--ease),box-shadow var(--duration-fast) var(--ease)}
+.control-input:focus,.control-select:focus{border-color:var(--champ-a-line);box-shadow:var(--focus-ring)}
+.control-select{appearance:none;color-scheme:dark;-webkit-text-fill-color:var(--ink);background-color:#202027;background-image:linear-gradient(45deg,transparent 50%,var(--ink-dim) 50%),linear-gradient(135deg,var(--ink-dim) 50%,transparent 50%),linear-gradient(180deg,var(--surface-2),var(--surface-1));background-position:calc(100% - 19px) 20px,calc(100% - 13px) 20px,0 0;background-size:6px 6px,6px 6px,100% 100%;background-repeat:no-repeat;padding-right:42px}
+.control-select option,.control-select optgroup{color-scheme:dark;color:var(--ink);-webkit-text-fill-color:var(--ink);background:#202027}
+.control-select option:checked{color:var(--ink);background:#283548;background:var(--champ-a-soft-solid)}
+.control-select option:hover{color:var(--ink);background:#2b3442}
+.filter-field{position:relative}
+.filter-field:focus-within{z-index:120}
+.counter-combobox{position:relative;z-index:100}
+.counter-list{display:none;position:absolute;z-index:80;top:calc(100% + 8px);left:0;right:0;max-height:330px;overflow:auto;padding:7px;border:1px solid var(--line-strong);border-radius:var(--radius-md);background:oklch(15% .024 240/.98);box-shadow:var(--shadow-elevated);backdrop-filter:var(--blur-glass)}
+.counter-list.open{display:grid;gap:4px}
+.counter-option{appearance:none;display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;padding:9px 11px;border:1px solid transparent;border-radius:var(--radius-xs);color:var(--ink-soft);background:transparent;cursor:pointer;text-align:left}
+.counter-option:hover,.counter-option:focus-visible{border-color:var(--champ-a-line);background:var(--champ-a-soft);outline:none}
+.counter-option span{font-weight:800}.counter-option em{color:var(--ink-faint);font-family:var(--font-mono);font-size:10px;font-style:normal}
+.counter-option-empty{padding:14px;color:var(--ink-faint);text-align:center}
+.threshold-box{display:grid;gap:10px;padding:14px;border:1px solid var(--line-soft);border-radius:var(--radius-md);background:oklch(0% 0 0/.12)}
+.threshold-row{display:grid;grid-template-columns:94px 1fr;gap:10px;align-items:center}
+.threshold-input{min-height:42px;text-align:center;font-family:var(--font-mono);font-weight:800}
+.threshold-presets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.threshold-preset{position:relative;appearance:none;display:grid;place-items:center;gap:1px;min-height:46px;padding:6px 4px;border:1px solid var(--line);border-radius:var(--radius-sm);color:var(--ink-dim);background:var(--surface-1);cursor:pointer;font-family:var(--font-mono);transition:border-color var(--duration-fast) var(--ease),background var(--duration-fast) var(--ease),transform var(--duration-fast) var(--ease)}
+.threshold-preset:hover{color:var(--ink);border-color:var(--line-strong);transform:translateY(-1px)}
+.threshold-preset strong{font-size:12px;line-height:1.1}.threshold-preset small{color:var(--ink-faint);font-size:7.5px;font-weight:850;letter-spacing:.06em;text-transform:uppercase}
+.threshold-preset.recommended::after{content:"•";position:absolute;top:3px;right:6px;color:var(--warning);font-size:11px}
+.threshold-preset.active{color:var(--champ-a);border-color:var(--champ-a-line);background:var(--champ-a-soft)}
+.threshold-preset.active small{color:var(--ink-soft)}
+.threshold-preset-meta{min-height:28px;color:var(--ink-faint);font-size:10.5px;line-height:1.4}
+.switch-row{display:flex;align-items:center;gap:10px;color:var(--ink-dim);font-size:12px}
+.switch-row input{accent-color:var(--champ-a);width:17px;height:17px}
+.wilson-box{display:flex;align-items:center;justify-content:space-between;gap:var(--space-5);margin-top:var(--space-4);padding:15px 16px;border:1px solid var(--info-line);border-radius:var(--radius-md);background:linear-gradient(135deg,var(--info-soft),oklch(0% 0 0/.13))}
+.wilson-copy{display:grid;gap:5px;min-width:0}.wilson-copy .filter-label strong{color:var(--info);font-size:11px}.wilson-copy p{max-width:760px;color:var(--ink-dim);font-size:11.5px;line-height:1.45}
+.wilson-levels{display:grid;grid-template-columns:repeat(3,minmax(92px,1fr));gap:7px;min-width:310px}
+.wilson-level{appearance:none;display:grid;place-items:center;gap:2px;min-height:52px;padding:7px;border:1px solid var(--line);border-radius:var(--radius-sm);color:var(--ink-dim);background:linear-gradient(180deg,var(--surface-2),var(--surface-1));cursor:pointer;font-family:var(--font-mono)}
+.wilson-level strong{font-size:13px}.wilson-level small{color:var(--ink-faint);font-size:7.5px;font-weight:850;letter-spacing:.07em;text-transform:uppercase}
+.wilson-level:hover{color:var(--ink);border-color:var(--line-strong)}.wilson-level.active{color:var(--info);border-color:var(--info-line);background:linear-gradient(180deg,var(--info-soft),var(--surface-1));box-shadow:0 0 0 1px oklch(75% .10 268/.08)}.wilson-level.active small{color:var(--ink-soft)}
+.wilson-cell{white-space:nowrap}.wilson-cell strong{display:block;color:var(--info);font-family:var(--font-mono);font-size:13px}.wilson-cell small{display:block;margin-top:2px;color:var(--ink-faint);font-family:var(--font-mono);font-size:8px;text-transform:uppercase}
+.filter-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:var(--space-4);padding-top:var(--space-4);border-top:1px solid var(--line-soft)}
+.filter-actions .search-wrap{flex:1;min-width:220px}
+.console-btn{appearance:none;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:var(--radius-pill);color:var(--ink-dim);background:linear-gradient(180deg,var(--surface-2),var(--surface-1));cursor:pointer;font-family:var(--font-mono);font-size:10px;font-weight:850;letter-spacing:.06em;text-transform:uppercase}
+.console-btn:hover{color:var(--ink);border-color:var(--line-strong)}
+.console-btn.primary{color:var(--champ-a);border-color:var(--champ-a-line);background:linear-gradient(180deg,var(--champ-a-soft),var(--surface-1))}
+.summary-strip{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(4,minmax(120px,.55fr));gap:var(--space-3);margin-top:var(--space-5)}
+.summary-main,.summary-stat{padding:18px;border:1px solid var(--line);border-radius:var(--radius-md);background:linear-gradient(145deg,var(--surface-2),var(--surface-1));box-shadow:var(--shadow-soft)}
+.summary-main h2{font-size:clamp(24px,3vw,36px)}
+.summary-main p{margin-top:6px;max-width:720px}
+.summary-stat{display:grid;align-content:center;gap:4px}
+.summary-stat span{color:var(--ink-faint);font-family:var(--font-mono);font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.summary-stat strong{font-family:var(--font-mono);font-size:22px;letter-spacing:-.04em}
+.rankings-output{margin-top:var(--space-5)}
+.podium-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-4);margin-bottom:var(--space-5)}
+.podium-card{position:relative;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:14px;min-height:116px;padding:20px;border:1px solid var(--line);border-radius:var(--radius-lg);background:linear-gradient(145deg,var(--surface-2),var(--surface-1));box-shadow:var(--shadow-card);overflow:hidden}
+.podium-card::after{content:"";position:absolute;inset:auto -40px -70px auto;width:180px;height:180px;border-radius:50%;background:var(--champ-a-faint);filter:blur(2px)}
+.podium-card.position-1{border-color:var(--champ-a-line);transform:translateY(-5px)}
+.podium-card.position-2::after{background:var(--info-soft)}
+.podium-card.position-3::after{background:var(--champ-b-faint)}
+.podium-rank{position:relative;z-index:1;display:grid;place-items:center;width:48px;height:48px;border:1px solid var(--line-strong);border-radius:50%;color:var(--ink);background:oklch(0% 0 0/.2);font-family:var(--font-mono);font-size:20px;font-weight:900}
+.podium-copy{position:relative;z-index:1;display:grid;min-width:0}
+.podium-copy span{font-size:18px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.podium-copy strong{color:var(--champ-a);font-family:var(--font-mono);font-size:25px}.podium-copy em{color:var(--ink-faint);font-size:11px;font-style:normal}
+.sample-badge{position:absolute;z-index:2;right:12px;top:12px;display:inline-flex;min-height:23px;align-items:center;padding:0 8px;border:1px solid;border-radius:var(--radius-pill);font-family:var(--font-mono);font-size:8.5px;font-weight:850;letter-spacing:.06em;text-transform:uppercase}
+.sample-badge.high{color:var(--success);border-color:var(--success-line);background:var(--success-soft)}.sample-badge.low{color:var(--warning);border-color:var(--warning-line);background:var(--warning-soft)}
+.method-banner{display:flex;justify-content:space-between;gap:var(--space-4);align-items:flex-start;margin-bottom:var(--space-4);padding:16px 18px;border:1px solid var(--info-line);border-radius:var(--radius-md);background:var(--info-soft);color:var(--ink-dim)}
+.method-banner strong{color:var(--ink)}.method-banner b{color:var(--info)}.method-banner small{color:var(--warning);font-family:var(--font-mono)}
+.table-card{padding:0;overflow:hidden;border:1px solid var(--line);border-radius:var(--radius-xl);background:linear-gradient(145deg,var(--surface-2),var(--surface-1));box-shadow:var(--shadow-card)}
+.table-card-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);padding:20px 22px;border-bottom:1px solid var(--line)}
+.table-card-head h3{font-size:22px}.table-card-head span{color:var(--ink-faint);font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.table-scroll{overflow:auto}
+.ranking-table{width:100%;min-width:920px;border-collapse:collapse}
+.ranking-table th{padding:13px 16px;color:var(--ink-faint);background:oklch(0% 0 0/.14);font-family:var(--font-mono);font-size:9.5px;font-weight:850;letter-spacing:.08em;text-align:left;text-transform:uppercase;white-space:nowrap}
+.ranking-table td{padding:15px 16px;border-top:1px solid var(--line-soft);color:var(--ink-dim);vertical-align:middle}
+.ranking-row{transition:opacity var(--duration-fast) var(--ease),background var(--duration-fast) var(--ease),filter var(--duration-fast) var(--ease)}
+.ranking-row:hover{background:oklch(100% 0 0/.025)}
+.ranking-row.low-sample{opacity:.58;filter:saturate(.68)}
+.ranking-row.low-sample:hover{opacity:.86;filter:saturate(.95)}
+.rank-cell span{display:grid;place-items:center;width:32px;height:32px;border:1px solid var(--line);border-radius:50%;color:var(--ink-soft);font-family:var(--font-mono);font-weight:850}
+.champion-cell{min-width:180px}.champion-cell strong,.champion-cell em{display:block}.champion-cell strong{color:var(--ink);font-size:15px}.champion-cell em{margin-top:2px;color:var(--ink-faint);font-size:10.5px;font-style:normal}
+.metric-cell{min-width:220px}.metric-line{display:flex;align-items:baseline;justify-content:space-between;gap:10px}.metric-line strong{color:var(--champ-a);font-family:var(--font-mono);font-size:16px}.metric-line span{color:var(--ink-faint);font-family:var(--font-mono);font-size:9.5px}
+.metric-track{height:5px;margin-top:7px;border-radius:var(--radius-pill);background:oklch(0% 0 0/.25);overflow:hidden}.metric-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--champ-a-line),var(--champ-a))}
+.confidence-pill{display:inline-flex;min-height:26px;align-items:center;padding:0 9px;border:1px solid;border-radius:var(--radius-pill);font-family:var(--font-mono);font-size:8.5px;font-weight:850;white-space:nowrap;text-transform:uppercase}.confidence-pill.high{color:var(--success);border-color:var(--success-line);background:var(--success-soft)}.confidence-pill.mid{color:var(--info);border-color:var(--info-line);background:var(--info-soft)}.confidence-pill.low{color:var(--warning);border-color:var(--warning-line);background:var(--warning-soft)}
+.signed-cell{font-family:var(--font-mono);font-weight:800}.signed-cell.positive{color:var(--success)}.signed-cell.negative{color:var(--danger)}
+.action-cell{text-align:right}.table-action{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 11px;border:1px solid var(--champ-a-line);border-radius:var(--radius-pill);color:var(--champ-a);background:var(--champ-a-soft);font-family:var(--font-mono);font-size:9px;font-weight:850;text-transform:uppercase;white-space:nowrap}.table-action:hover{color:var(--ink);text-decoration:none}
+.empty-rankings,.empty-inline{padding:var(--space-7);border:1px dashed var(--line-strong);border-radius:var(--radius-xl);color:var(--ink-dim);background:oklch(0% 0 0/.12);text-align:center}.empty-rankings h3{font-size:24px}.empty-rankings p{max-width:680px;margin:8px auto 0}.empty-inline{grid-column:1/-1}
+.site-footer.rank-footer{margin-top:var(--space-8)}
+@media(max-width:1120px){.filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.threshold-box{grid-column:1/-1}.summary-strip{grid-template-columns:repeat(4,minmax(0,1fr))}.summary-main{grid-column:1/-1}.rankings-hero .hero-card{grid-template-columns:1fr}.podium-grid{grid-template-columns:1fr}.podium-card.position-1{transform:none}}
+@media(max-width:980px){.topbar-inner{grid-template-columns:1fr!important}.nav-links{grid-template-columns:repeat(3,minmax(0,1fr))!important;width:100%!important}.rankings-console{padding:var(--space-5)}.console-head{display:grid}.mode-switch{width:100%}}
+@media(max-width:700px){.filter-grid{grid-template-columns:1fr}.threshold-box{grid-column:auto}.summary-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.summary-main{grid-column:1/-1}.hero-mini-grid.three{grid-template-columns:1fr}.method-banner{display:grid}.filter-actions{display:grid}.search-wrap{min-width:0!important}.console-btn{width:100%}.rank-role-pills{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}.rank-role-pills .role-pill{min-width:0;padding-inline:5px;font-size:8.5px}}
+@media(max-width:760px){.wilson-box{align-items:stretch;flex-direction:column}.wilson-levels{min-width:0;width:100%}}
+@media(max-width:520px){.nav-link{font-size:8px!important;padding-inline:4px!important}.mode-switch{grid-template-columns:1fr}.summary-strip{grid-template-columns:1fr}.summary-main{grid-column:auto}.rankings-console{padding:18px}.podium-card{padding:17px}.threshold-row{grid-template-columns:1fr}.threshold-presets{grid-template-columns:repeat(2,1fr)}.wilson-levels{grid-template-columns:1fr}.wilson-level{min-height:46px}}
+/* Threshold più compatti soltanto nel Ranking generale */
+body.mode-ranking .threshold-preset strong {
+  font-size: 9px !important;
+}
+
+body.mode-ranking .threshold-preset small {
+  font-size: 6px !important;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+}
 </style>
 </head>
 <body>
 <div id="tooltip" role="tooltip"></div>
-
 <header class="topbar">
   <div class="topbar-inner">
     <div class="brand" aria-label="Matchup Intelligence">
-      <div class="brand-mark"><span>TEAM</span> <span>DRAFT</span><em>LAB</em></div>
-      <div class="brand-tag">analisi draft</div>
+      <div class="brand-mark"><span>RANKINGS</span><em>LAB</em></div>
+      <div class="brand-tag">classifiche e counter</div>
     </div>
-
     <nav class="nav-links" aria-label="Navigazione moduli">
       <a class="nav-link" href="./visual.html">Matchup 1v1</a>
-      <a class="nav-link active" href="./tm_data.html" aria-current="page">Modalità Team</a>
-      <a class="nav-link" href="./rankings.html">Classifiche</a>
+      <a class="nav-link" href="./tm_data.html">Modalità Team</a>
+      <a class="nav-link active" href="./rankings.html" aria-current="page">Classifiche</a>
     </nav>
-
     <div class="data-status-pill loading" id="dataStatus">Caricamento dati</div>
   </div>
 </header>
 
-<main class="shell" id="draftLabApp">
-  <section class="module-hero" aria-labelledby="pageTitle">
+<main class="shell rankings-shell" id="rankingsLabApp">
+  <section class="module-hero rankings-hero" aria-labelledby="pageTitle">
     <div class="hero-card">
       <div>
-        <div class="micro-label hero-kicker">Analisi del draft</div>
-        <h1 class="hero-title" id="pageTitle"><span class="word-white">Team Draft</span><span class="word-lab">Lab</span></h1>
-        <p class="hero-copy">
-          Confronta due composizioni e scopri dove ciascuna squadra può creare vantaggio, quali corsie contano di più e quali rischi evitare.
-        </p>
+        <div class="micro-label hero-kicker">Classifiche del dataset</div>
+        <h1 class="hero-title" id="pageTitle"><span class="word-white">Rankings</span> <span class="word-lab">Lab</span></h1>
+        <p class="hero-copy">Confronta tutti i campioni nello stesso ruolo oppure scegli un bersaglio e scopri quali avversari tendono a contrastarlo meglio nei matchup realmente presenti nel dataset.</p>
       </div>
-      <aside class="hero-side" aria-label="Nota metodologica">
-        <div class="hero-note">
-          <strong>Una guida per il piano partita, non una previsione:</strong> l’analisi riassume ciò che accade più spesso con questi campioni. Non può sapere come giocheranno le persone e non assegna una probabilità certa di vittoria.
-        </div>
-        <div class="hero-mini-grid" aria-label="Copertura dataset">
+      <aside class="hero-side" aria-label="Copertura e metodo">
+        <div class="hero-note"><strong>Risultati trasparenti:</strong> i dati sotto soglia restano visibili ma attenuati e chiaramente segnalati. Puoi cambiare la soglia o escluderli dalla vista.</div>
+        <div class="hero-mini-grid three">
           <div class="hero-mini"><span>Matchup</span><strong id="heroDatasetCount">—</strong></div>
-          <div class="hero-mini"><span>Vista</span><strong>Draft</strong></div>
+          <div class="hero-mini"><span>Ruoli</span><strong id="heroRoleCount">—</strong></div>
+          <div class="hero-mini"><span>Soglia attiva</span><strong id="heroThreshold">—</strong></div>
         </div>
       </aside>
     </div>
   </section>
 
-  <section class="draft-console" aria-labelledby="draftInputTitle">
-    <div class="draft-toolbar">
+  <section class="rankings-console" aria-labelledby="controlsTitle">
+    <div class="console-head">
       <div>
-        <div class="micro-label">Composizione squadre</div>
-        <h2 id="draftInputTitle">Seleziona Team 1 e Team 2</h2>
-        <p>
-          Tutti i valori positivi favoriscono Team 1; quelli negativi favoriscono Team 2. Le descrizioni spiegano sempre come leggere il segnale.
-        </p>
+        <div class="micro-label">Imposta la lettura</div>
+        <h2 id="controlsTitle">Classifica generale o ricerca counter</h2>
+        <p>La classifica generale usa i profili aggregati del ruolo; la ricerca counter legge invece ogni matchup dalla prospettiva dell’avversario del campione selezionato.</p>
       </div>
-      <div class="draft-actions">
-        <button class="action-btn" id="swapTeamsBtn" type="button">Inverti team</button>
-        <button class="action-btn danger" id="clearDraftBtn" type="button">Pulisci</button>
-        <button class="action-btn primary" id="analyzeDraftBtn" type="button">Analizza draft</button>
+      <div class="mode-switch" aria-label="Modalità classifica">
+        <button class="mode-btn active" type="button" data-mode="role" aria-pressed="true">Classifica ruolo</button>
+        <button class="mode-btn" type="button" data-mode="counter" aria-pressed="false">Trova counter</button>
       </div>
     </div>
 
-    <div class="team-grid" id="teamInputGrid">
-      <section class="team-panel team-a" aria-labelledby="team1Title">
-        <div class="team-head">
-          <h3 id="team1Title">Team 1</h3>
-          <span class="team-count" id="team1Count">0 / 5</span>
-        </div>
-        <div class="lane-list" id="team1Slots" data-team="1"></div>
-      </section>
+    <nav class="rank-role-pills" id="rolePills" aria-label="Seleziona ruolo"></nav>
 
-      <section class="team-panel team-b" aria-labelledby="team2Title">
-        <div class="team-head">
-          <h3 id="team2Title">Team 2</h3>
-          <span class="team-count" id="team2Count">0 / 5</span>
-        </div>
-        <div class="lane-list" id="team2Slots" data-team="2"></div>
-      </section>
-    </div>
-  </section>
+    <div class="filter-grid">
+      <div class="filter-field" id="roleMetricField">
+        <label for="metricSelect">Valore da classificare</label>
+        <select class="control-select" id="metricSelect"></select>
+      </div>
 
-  <section class="empty-note" id="emptyState">
-    Seleziona almeno una coppia di campioni nella stessa corsia per iniziare.
-  </section>
-
-  <section class="output-region" id="analysisRegion" hidden>
-    <section class="outlook-hero" id="outlookHero" aria-labelledby="outlookTitle"></section>
-
-    <nav class="tabs" id="tabBar" aria-label="Sezioni di analisi">
-      <button class="tab-btn active" data-tab="overview">Panoramica</button>
-      <button class="tab-btn" data-tab="economy">Oro, XP e vantaggio</button>
-      <button class="tab-btn" data-tab="combat">Combattimento</button>
-      <button class="tab-btn" data-tab="raw">Approfondisci i dati</button>
-    </nav>
-
-    <div class="tab-panel active" id="panel-overview">
-    <section class="section-card visual-summary" aria-labelledby="visualSummaryTitle">
-      <div class="section-head">
-        <div>
-          <div class="micro-label">Lettura rapida</div>
-          <h2 id="visualSummaryTitle">Dove nasce il vantaggio</h2>
-          <p>Guarda subito quali corsie favoriscono un team e quali aspetti del draft pesano di più.</p>
+      <div class="filter-field" id="counterChampionField" hidden>
+        <label for="counterChampionInput">Campione da contrastare</label>
+        <div class="counter-combobox">
+          <input class="control-input" id="counterChampionInput" type="text" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="counterChampionList" placeholder="Cerca un campione…" autocomplete="off">
+          <div class="counter-list" id="counterChampionList" role="listbox"></div>
         </div>
       </div>
-      <div class="visual-grid">
-        <div class="visual-panel pressure-panel">
-          <div class="visual-panel-head"><h3>Vantaggio per corsia</h3><span>forza</span></div>
-          <div class="lane-pressure-map" id="lanePressureMap"></div>
-        </div>
-        <div class="visual-panel">
-          <div class="visual-panel-head"><h3>Segnali principali</h3><span>forza</span></div>
-          <div class="heatmap-grid" id="draftHeatmap"></div>
-        </div>
+
+      <div class="filter-field" id="counterSortField" hidden>
+        <label for="counterSortSelect">Ordina i counter per</label>
+        <select class="control-select" id="counterSortSelect"></select>
       </div>
-    </section>
-    <section class="section-card" aria-labelledby="laneMatrixTitle">
-      <div class="section-head">
-        <div>
-          <div class="micro-label">Dettaglio corsie</div>
-          <h2 id="laneMatrixTitle">Come stanno le cinque corsie</h2>
-          <p>Per ogni ruolo trovi il lato favorito e i pochi dati che spiegano davvero perché.</p>
+
+      <div class="threshold-box">
+        <div class="filter-label">Affidabilità minima · <span id="thresholdContext">partite complessive nel ruolo</span></div>
+        <div class="threshold-row">
+          <input class="control-input threshold-input" id="thresholdInput" type="number" min="0" step="10" value="100" aria-label="Soglia minima di partite">
+          <div class="threshold-presets" id="thresholdPresets" aria-label="Soglie rapide adattive"></div>
         </div>
+        <div class="threshold-preset-meta" id="thresholdPresetMeta"></div>
+        <label class="switch-row"><input id="includeLowSample" type="checkbox" checked> Mostra anche le righe sotto soglia, attenuate</label>
       </div>
-      <div class="lane-matrix" id="laneMatrix"></div>
-    </section>
-    <section class="section-card" aria-labelledby="insightTitle">
-      <div class="section-head">
-        <div>
-          <div class="micro-label">Interpretazione</div>
-          <h2 id="insightTitle">Cosa significa in partita</h2>
-          <p>Consigli pratici ricavati dai segnali più forti e affidabili del draft.</p>
-        </div>
-      </div>
-      <div class="insight-list" id="insightList"></div>
-    </section>
     </div>
 
-    <div class="tab-panel" id="panel-economy">
-    <section class="section-card snowball-section" aria-labelledby="snowballTitle">
-      <div class="section-head">
-        <div>
-          <div class="micro-label">Vantaggio iniziale</div>
-          <h2 id="snowballTitle">Quanto conta ottenere il primo vantaggio</h2>
-          <p>Mostra quanto cambia l’esito della partita quando una corsia arriva avanti o indietro al minuto 15.</p>
-        </div>
+    <div class="wilson-box" id="wilsonField" hidden>
+      <div class="wilson-copy">
+        <div class="filter-label">Intervallo Wilson · livello <strong id="wilsonCurrent">99%</strong></div>
+        <p id="wilsonDescription">Impostazione prudente: penalizza maggiormente i risultati ottenuti su pochi matchup.</p>
       </div>
-      <div class="snowball-panel" id="snowballPanel"></div>
-    </section>
-    <section class="section-card" aria-labelledby="timelineTitle">
-      <div class="section-head">
-        <div>
-          <div class="micro-label">Andamento della partita</div>
-          <h2 id="timelineTitle">Oro, XP e vantaggio specifico dei matchup</h2>
-          <p>Le curve sommano solo le corsie con dati diretti. La modalità “specifica” mostra ciò che va oltre la forza abituale dei campioni.</p>
-        </div>
-        <div class="timeline-controls" id="timelineControls" role="tablist" aria-label="Metrica timeline"></div>
-      </div>
-      <div class="timeline-note" id="timelineNote"></div>
-      <div class="timeline-chart" id="timelineChart"></div>
-      <div class="timeline-legend" id="timelineLegend"></div>
-    </section>
-    </div>
-
-    <div class="tab-panel" id="panel-combat">
-    <section class="section-card" aria-labelledby="teamProfileTitle">
-      <div class="section-head">
-        <div>
-          <div class="micro-label">Identità delle squadre</div>
-          <h2 id="teamProfileTitle">Come vogliono giocare le due squadre</h2>
-          <p>Prima trovi una sintesi rapida dei fight, poi l’identità delle squadre e infine il dettaglio essenziale spiegato in modo semplice.</p>
-        </div>
-      </div>
-      <div class="damage-layout">
-        <div id="damageComposition"></div>
-        <div id="teamProfileStats"></div>
-      </div>
-    </section>
-    <section class="section-card advanced-intelligence-section" aria-labelledby="advancedMetricsTitle">
-      <div class="section-head">
-        <div>
-          <div class="micro-label">Lettura avanzata</div>
-          <h2 id="advancedMetricsTitle">Quanto è solido il vantaggio e come può cambiare</h2>
-          <p>Qui trovi quanto il vantaggio dipende dalle taglie, quanto viene trasformato in obiettivi, quanto varia tra le partite e quali corsie possono ribaltarsi più facilmente.</p>
-        </div>
-      </div>
-      <div id="advancedMetrics"></div>
-    </section>
-    <section class="section-card" aria-labelledby="killPhaseTitle">
-      <div class="section-head">
-        <div>
-          <div class="micro-label">Combattimenti nel tempo</div>
-          <h2 id="killPhaseTitle">Kill, morti e taglie nelle diverse fasi</h2>
-          <p>Guarda come cambiano scontri e taglie nelle varie fasi, senza sovraccaricare la lettura: pochi segnali, ma chiari.</p>
-        </div>
-      </div>
-      <div class="phase-team-list" id="killPhaseTeam"></div>
-    </section>
-    <section class="section-card" aria-labelledby="radarTitle">
-      <div class="section-head">
-        <div>
-          <div class="micro-label">Confronto generale</div>
-          <h2 id="radarTitle">Punti forti delle due squadre</h2>
-          <p>Una vista compatta da 0 a 100: più il valore è alto, più quella caratteristica è presente nella composizione.</p>
-        </div>
-      </div>
-      <div class="radar-wrap" id="teamRadar"></div>
-    </section>
-    </div>
-
-    <div class="tab-panel" id="panel-raw">
-    <section class="section-card" aria-labelledby="warningTitle">
-      <div class="section-head">
-        <div>
-          <div class="micro-label">Affidabilità</div>
-          <h2 id="warningTitle">Affidabilità</h2>
-          <p>Qui segnaliamo corsie con poche partite, stime basate sul profilo generale o dati mancanti.</p>
-        </div>
-      </div>
-      <div class="warning-list" id="warningList"></div>
-    </section>
-    <section class="section-card" aria-labelledby="datasetAuditTitle">
-      <div class="section-head">
-        <div>
-          <div class="micro-label">Tutti i dati</div>
-          <h2 id="datasetAuditTitle">Esplora tutte le metriche</h2>
-          <p>Una sezione completa per chi vuole approfondire. Ogni metrica include un nome leggibile e una breve spiegazione.</p>
-        </div>
-      </div>
-      <div id="datasetAudit"></div>
-    </section>
-    </div>
-
-
-  </section>
-
-  <section class="section-card draft-glossary" aria-labelledby="draftGlossaryTitle">
-    <div class="section-head">
-      <div>
-        <div class="micro-label">Parole usate nell’analisi</div>
-        <h2 id="draftGlossaryTitle">Come leggere i dati</h2>
-        <p>Le definizioni essenziali per trasformare i numeri in un piano partita.</p>
+      <div class="wilson-levels" id="wilsonLevels" aria-label="Livello di confidenza Wilson">
+        <button class="wilson-level" type="button" data-confidence="90" aria-pressed="false"><strong>90%</strong><small>Esplorativo</small></button>
+        <button class="wilson-level" type="button" data-confidence="95" aria-pressed="false"><strong>95%</strong><small>Bilanciato</small></button>
+        <button class="wilson-level active" type="button" data-confidence="99" aria-pressed="true"><strong>99%</strong><small>Prudente</small></button>
       </div>
     </div>
-    <div class="draft-glossary-grid">
-      <article class="draft-term"><strong>Vantaggio specifico del matchup</strong><p>La parte di oro, XP o scambi che nasce dagli accoppiamenti scelti, oltre alla forza abituale dei campioni.</p></article>
-      <article class="draft-term"><strong>Peso del primo vantaggio</strong><p>Quanto cambia la percentuale di vittorie quando una corsia arriva avanti invece che indietro al minuto 15.</p></article>
-      <article class="draft-term"><strong>Saldo kill-morti</strong><p>Confronta le kill ottenute con le morti subite. Un valore positivo favorisce Team 1; uno negativo Team 2.</p></article>
-      <article class="draft-term"><strong>Saldo delle taglie</strong><p>L’oro extra guadagnato con le kill e con le taglie importanti, meno quello regalato morendo con una taglia.</p></article>
-      <article class="draft-term"><strong>Variabilità</strong><p>Quanto le partite con gli stessi matchup possono prendere direzioni diverse. Alta variabilità richiede un piano più flessibile.</p></article>
-      <article class="draft-term"><strong>Rischio di rimonta</strong><p>Quanto oro una squadra può restituire quando muore un campione con una taglia importante. Non misura la probabilità di rimonta: indica soltanto quanto valore è esposto.</p></article>
-      <article class="draft-term"><strong>Confronto con gli altri campioni del ruolo</strong><p>Posizione da 0 a 100 rispetto agli altri campioni dello stesso ruolo. Più alto significa più sopra la media in quella caratteristica.</p></article>
-      <article class="draft-term"><strong>Bilancio del draft</strong><p>Sintesi da −1 a +1 di corsie, risorse, scontri, taglie, obiettivi e profili dei campioni. Vicino a 0 indica equilibrio. Non è una percentuale di vittoria: serve a capire da dove può nascere il vantaggio.</p></article>
+
+    <div class="filter-actions">
+      <div class="search-wrap"><input class="control-input" id="tableSearch" type="search" placeholder="Filtra i risultati per nome…" aria-label="Filtra i risultati per nome"></div>
+      <button class="console-btn" id="resetFiltersBtn" type="button">Ripristina filtri</button>
+      <button class="console-btn primary" id="exportCsvBtn" type="button">Esporta CSV</button>
     </div>
   </section>
 
-  <footer class="site-footer">
-    <span id="footerStats">Team DraftLab · confronto corsia per corsia</span>
-    <span>I dati aiutano a preparare il piano partita: non sostituiscono le decisioni dei giocatori.</span>
-  </footer>
+  <section class="summary-strip" aria-live="polite">
+    <article class="summary-main"><div class="micro-label">Lettura corrente</div><h2 id="summaryTitle">—</h2><p id="summaryCopy">—</p></article>
+    <article class="summary-stat"><span>Totale</span><strong id="summaryTotal">—</strong></article>
+    <article class="summary-stat"><span>Affidabili</span><strong id="summaryReliable">—</strong></article>
+    <article class="summary-stat"><span>Sotto soglia</span><strong id="summaryLow">—</strong></article>
+    <article class="summary-stat"><span>Mediana</span><strong id="summaryMedian">—</strong></article>
+  </section>
+
+  <section class="empty-rankings" id="emptyState" hidden></section>
+
+  <section class="rankings-output" id="rankingsOutput">
+    <div class="podium-grid" id="podium"></div>
+    <div class="method-banner"><div id="methodNote"></div><small id="datasetWarnings"></small></div>
+    <section class="table-card" aria-labelledby="tableTitle">
+      <div class="table-card-head"><h3 id="tableTitle">Graduatoria completa</h3><span id="visibleCount">—</span></div>
+      <div id="rankingTableHost"></div>
+    </section>
+  </section>
+
+  <footer class="site-footer rank-footer"><span>Rankings Lab · indicatori descrittivi, non previsioni certe</span><span id="footerStats">—</span></footer>
 </main>
-
 <script src="./matchup_data.js"></script>
-<script src="./tm.js"></script>
+<script src="./rankings.js"></script>
 </body>
 </html>

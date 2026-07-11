@@ -2579,8 +2579,28 @@
     renderGlossary();
     renderFooterStats();
 
+    var params = new URLSearchParams(window.location.search);
+    var requestedRole = String(params.get('role') || '').toUpperCase();
     var startRole = (Array.isArray(DATA.meta.roles) && DATA.meta.roles[0]) || ROLE_ORDER[0];
+    if (DATA.meta.roles.indexOf(requestedRole) !== -1) startRole = requestedRole;
     setRole(startRole);
+
+    // Deep-link usato da Rankings Lab: apre direttamente il campione o il
+    // matchup richiesto senza modificare il comportamento della pagina normale.
+    var requestedA = params.get('a');
+    var requestedB = params.get('b');
+    var available = DATA.meta.roles_champions[startRole] || [];
+    if (requestedA && available.indexOf(requestedA) !== -1) {
+      state.champA = requestedA;
+      comboA.setValue(requestedA);
+      comboB.setOptions(opponentOptionsFor(startRole, requestedA));
+      comboB.setEnabled(true, 'Cerca l\'avversario…');
+      if (requestedB && available.indexOf(requestedB) !== -1 && getMatchup(startRole, requestedA, requestedB)) {
+        state.champB = requestedB;
+        comboB.setValue(requestedB);
+      }
+      render();
+    }
     setDataStatus('ready', 'Dataset pronto');
   }
 
