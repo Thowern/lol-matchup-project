@@ -1236,37 +1236,12 @@
     }).join('');
 
     var html = '<div class="card full-span">' +
-      '<div class="raw-toolbar"><button class="raw-btn" id="rawCopyBtn">Copia come testo</button><button class="raw-btn" id="rawCsvBtn">Scarica CSV</button></div>' +
       '<table class="raw-table"><thead><tr><th>Metrica</th><th>' + esc(champA) + '</th><th>' + esc(champB) + '</th></tr></thead><tbody>' + tableRows + '</tbody></table>' +
       '<div class="empty-note" style="margin-top:10px;">Le serie minuto per minuto (oro, XP e la parte specifica del matchup) sono nella scheda Andamento Partita.</div>' +
       '</div>';
 
     document.getElementById('panel-raw').innerHTML = html;
 
-    var copyBtn = document.getElementById('rawCopyBtn');
-    var csvBtn = document.getElementById('rawCsvBtn');
-    if (copyBtn) copyBtn.addEventListener('click', function () {
-      var text = rows.map(function (r) { return r.label + ': ' + champA + ' = ' + r.a + ' | ' + champB + ' = ' + r.b; }).join('\n');
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function () {
-          var orig = copyBtn.textContent; copyBtn.textContent = 'Copiato';
-          setTimeout(function () { copyBtn.textContent = orig; }, 1600);
-        }).catch(function () {});
-      }
-    });
-    if (csvBtn) csvBtn.addEventListener('click', function () {
-      function q(s) { return '"' + String(s).replace(/"/g, '""') + '"'; }
-      var csv = [q('Metrica') + ',' + q(champA) + ',' + q(champB)]
-        .concat(rows.map(function (r) { return q(r.label) + ',' + q(r.a) + ',' + q(r.b); }))
-        .join('\n');
-      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      var url = URL.createObjectURL(blob);
-      var link = document.createElement('a');
-      link.href = url;
-      link.download = 'matchup_' + state.role + '_' + champA + '_vs_' + champB + '.csv';
-      document.body.appendChild(link); link.click(); document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    });
   }
 
   /* ------------------------------------------------------------------ *
@@ -2207,7 +2182,7 @@
     var query = '';
     var panel = document.getElementById('panel-raw');
 
-    panel.innerHTML = '<div class="metric-atlas-v2"><section class="metric-atlas-intro"><div><div class="micro-label">Tutti i dati</div><h3>Tutte le metriche, organizzate per essere leggibili.</h3><p>La vista Essenziale mostra prima i dati più utili per preparare il matchup. La vista Completa permette di approfondire tutte le ' + fmtInt(DATA.matchupColumns.length) + ' metriche del confronto, i profili dei campioni, il confronto con gli altri campioni del ruolo e il numero di partite disponibili.</p></div><div class="metric-atlas-score"><span>Metriche disponibili</span><strong>' + fmtInt(DATA.matchupColumns.length) + '/' + fmtInt(DATA.matchupColumns.length) + '</strong><em>dati organizzati</em></div></section><div class="atlas-commandbar"><label><span class="visually-hidden">Cerca metrica</span><input id="rawFilter" type="search" placeholder="Cerca kill, taglie, livello 6, torre o drago…"></label><div class="atlas-mode"><button type="button" data-mode="essential" class="active">Essenziale</button><button type="button" data-mode="complete">Completa</button></div><button class="atlas-action" id="rawCopyBtn" type="button">Copia dati</button><button class="atlas-action" id="rawCsvBtn" type="button">Scarica CSV</button></div><div class="atlas-family-chips" id="rawFamilyChips"></div><div class="atlas-status" id="rawAtlasStatus"></div><div class="atlas-groups" id="rawAtlasGroups"></div></div>';
+    panel.innerHTML = '<div class="metric-atlas-v2"><section class="metric-atlas-intro"><div><div class="micro-label">Tutti i dati</div><h3>Tutte le metriche, organizzate per essere leggibili.</h3><p>La vista Essenziale mostra prima i dati più utili per preparare il matchup. La vista Completa permette di approfondire tutte le ' + fmtInt(DATA.matchupColumns.length) + ' metriche del confronto, i profili dei campioni, il confronto con gli altri campioni del ruolo e il numero di partite disponibili.</p></div><div class="metric-atlas-score"><span>Metriche disponibili</span><strong>' + fmtInt(DATA.matchupColumns.length) + '/' + fmtInt(DATA.matchupColumns.length) + '</strong><em>dati organizzati</em></div></section><div class="atlas-commandbar"><label><span class="visually-hidden">Cerca metrica</span><input id="rawFilter" type="search" placeholder="Cerca kill, taglie, livello 6, torre o drago…"></label><div class="atlas-mode"><button type="button" data-mode="essential" class="active">Essenziale</button><button type="button" data-mode="complete">Completa</button></div></div><div class="atlas-family-chips" id="rawFamilyChips"></div><div class="atlas-status" id="rawAtlasStatus"></div><div class="atlas-groups" id="rawAtlasGroups"></div></div>';
 
     var chipTarget = document.getElementById('rawFamilyChips');
     chipTarget.innerHTML = '<button type="button" data-family="all" class="active">Tutte</button>' + VISUAL_ATLAS_FAMILIES.filter(function (f) { return f.id !== 'other'; }).map(function (f) { return '<button type="button" data-family="' + esc(f.id) + '">' + esc(f.short) + '</button>'; }).join('') + '<button type="button" data-family="profile">Profili</button>';
@@ -2250,25 +2225,6 @@
       draw();
     }); });
 
-    var copyBtn = document.getElementById('rawCopyBtn');
-    var csvBtn = document.getElementById('rawCsvBtn');
-    copyBtn.addEventListener('click', function () {
-      var matchupText = rows.map(function (r) { return r.source + ' | ' + champA + ' = ' + r.exportA + ' | ' + champB + ' = ' + r.exportB; });
-      var profileText = profileRows.map(function (r) { return r.source + ' | ' + champA + ' = ' + r.exportA + ' | ' + champB + ' = ' + r.exportB + ' | mediana = ' + r.exportMedian; });
-      var text = ['[MATCHUP]'].concat(matchupText, ['','[PROFILI E BENCHMARK]'], profileText).join('\n');
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text);
-      copyBtn.textContent = 'Copiato'; setTimeout(function () { copyBtn.textContent = 'Copia'; }, 1400);
-    });
-    csvBtn.addEventListener('click', function () {
-      function q(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }
-      var csvRows = [q('Sezione') + ',' + q('Campo dataset') + ',' + q('Descrizione') + ',' + q(champA) + ',' + q(champB) + ',' + q('Benchmark')]
-        .concat(rows.map(function (r) { return [q('matchup'), q(r.source), q(r.label), q(r.exportA), q(r.exportB), q('')].join(','); }))
-        .concat(profileRows.map(function (r) { return [q('profilo'), q(r.source), q(r.label), q(r.exportA), q(r.exportB), q(r.exportMedian)].join(','); }));
-      var blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      var url = URL.createObjectURL(blob); var link = document.createElement('a');
-      link.href = url; link.download = 'matchup_complete_' + state.role + '_' + champA + '_vs_' + champB + '.csv';
-      document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
-    });
     draw();
   }
 

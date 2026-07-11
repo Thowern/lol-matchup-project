@@ -2481,6 +2481,9 @@ summary::marker { color:var(--champ-a); }
 .threshold-preset{position:relative;appearance:none;display:grid;place-items:center;gap:1px;min-height:46px;padding:6px 4px;border:1px solid var(--line);border-radius:var(--radius-sm);color:var(--ink-dim);background:var(--surface-1);cursor:pointer;font-family:var(--font-mono);transition:border-color var(--duration-fast) var(--ease),background var(--duration-fast) var(--ease),transform var(--duration-fast) var(--ease)}
 .threshold-preset:hover{color:var(--ink);border-color:var(--line-strong);transform:translateY(-1px)}
 .threshold-preset strong{font-size:12px;line-height:1.1}.threshold-preset small{color:var(--ink-faint);font-size:7.5px;font-weight:850;letter-spacing:.06em;text-transform:uppercase}
+/* Etichette più compatte soltanto nella classifica generale. */
+body.mode-ranking .threshold-preset strong{font-size:9px!important}
+body.mode-ranking .threshold-preset small{font-size:6px!important;line-height:1.05;letter-spacing:.02em}
 .threshold-preset.recommended::after{content:"•";position:absolute;top:3px;right:6px;color:var(--warning);font-size:11px}
 .threshold-preset.active{color:var(--champ-a);border-color:var(--champ-a-line);background:var(--champ-a-soft)}
 .threshold-preset.active small{color:var(--ink-soft)}
@@ -2545,16 +2548,7 @@ summary::marker { color:var(--champ-a); }
 @media(max-width:700px){.filter-grid{grid-template-columns:1fr}.threshold-box{grid-column:auto}.summary-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.summary-main{grid-column:1/-1}.hero-mini-grid.three{grid-template-columns:1fr}.method-banner{display:grid}.filter-actions{display:grid}.search-wrap{min-width:0!important}.console-btn{width:100%}.rank-role-pills{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}.rank-role-pills .role-pill{min-width:0;padding-inline:5px;font-size:8.5px}}
 @media(max-width:760px){.wilson-box{align-items:stretch;flex-direction:column}.wilson-levels{min-width:0;width:100%}}
 @media(max-width:520px){.nav-link{font-size:8px!important;padding-inline:4px!important}.mode-switch{grid-template-columns:1fr}.summary-strip{grid-template-columns:1fr}.summary-main{grid-column:auto}.rankings-console{padding:18px}.podium-card{padding:17px}.threshold-row{grid-template-columns:1fr}.threshold-presets{grid-template-columns:repeat(2,1fr)}.wilson-levels{grid-template-columns:1fr}.wilson-level{min-height:46px}}
-/* Threshold più compatti soltanto nel Ranking generale */
-body.mode-ranking .threshold-preset strong {
-  font-size: 9px !important;
-}
 
-body.mode-ranking .threshold-preset small {
-  font-size: 6px !important;
-  line-height: 1.05;
-  letter-spacing: 0.02em;
-}
 </style>
 </head>
 <body>
@@ -2653,7 +2647,6 @@ body.mode-ranking .threshold-preset small {
     <div class="filter-actions">
       <div class="search-wrap"><input class="control-input" id="tableSearch" type="search" placeholder="Filtra i risultati per nome…" aria-label="Filtra i risultati per nome"></div>
       <button class="console-btn" id="resetFiltersBtn" type="button">Ripristina filtri</button>
-      <button class="console-btn primary" id="exportCsvBtn" type="button">Esporta CSV</button>
     </div>
   </section>
 
