@@ -1086,7 +1086,7 @@
       if (!event.target.closest('.counter-combobox')) closeChampionPicker();
     });
 
-    byId('exportCsvBtn').addEventListener('click', exportCsv);
+    byId('exportCsvBtn')?.addEventListener('click', exportCsv);
     byId('resetFiltersBtn').addEventListener('click', () => {
       state.thresholds.role = null;
       state.thresholds.counter = null;

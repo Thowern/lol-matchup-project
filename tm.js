@@ -486,12 +486,25 @@
 
   function valueAtMinute(series, minutes, minute = REFERENCE_MINUTE) {
     if (!Array.isArray(series) || !series.length) return null;
-    if (Array.isArray(minutes)) {
-      const idx = minutes.map(Number).indexOf(minute);
-      if (idx >= 0 && idx < series.length) return safeNumber(series[idx]);
-    }
-    if (minute >= 0 && minute < series.length) return safeNumber(series[minute]);
-    return null;
+    const numericMinutes = Array.isArray(minutes)
+      ? minutes.map(safeNumber)
+      : series.map((_, index) => index);
+    const exactIndex = numericMinutes.indexOf(minute);
+    if (exactIndex >= 0 && exactIndex < series.length) return safeNumber(series[exactIndex]);
+
+    // Some exports omit minute 15 or use a shifted timeline. Fall back to the
+    // closest available minute instead of silently returning an empty value.
+    let nearestIndex = -1;
+    let nearestDistance = Infinity;
+    numericMinutes.forEach((candidate, index) => {
+      if (candidate === null || index >= series.length || safeNumber(series[index]) === null) return;
+      const distance = Math.abs(candidate - minute);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    });
+    return nearestIndex >= 0 ? safeNumber(series[nearestIndex]) : null;
   }
 
   function getMonsterPctKeys(lane) {
@@ -1188,19 +1201,27 @@
     byId('emptyState').hidden = true;
     byId('analysisRegion').hidden = false;
 
-    renderOutlook(analysis);
-    renderVisualSummary(analysis);
-    renderSnowball(analysis);
-    renderTimelineControls(analysis);
-    renderTimeline(analysis);
-    renderLaneMatrix(analysis);
-    renderDamageAndProfile(analysis);
-    renderAdvancedMetrics(analysis);
-    renderKillPhase(analysis);
-    renderRadar(analysis);
-    renderInsights(analysis);
-    renderWarnings(analysis);
-    renderRaw(analysis);
+    [
+      ['outlook', renderOutlook],
+      ['visual summary', renderVisualSummary],
+      ['snowball', renderSnowball],
+      ['timeline controls', renderTimelineControls],
+      ['timeline', renderTimeline],
+      ['lane matrix', renderLaneMatrix],
+      ['damage and profiles', renderDamageAndProfile],
+      ['advanced metrics', renderAdvancedMetrics],
+      ['kill phases', renderKillPhase],
+      ['radar', renderRadar],
+      ['insights', renderInsights],
+      ['warnings', renderWarnings],
+      ['dataset atlas', renderRaw]
+    ].forEach(([label, renderer]) => {
+      try {
+        renderer(analysis);
+      } catch (error) {
+        console.error(`[Team DraftLab] Rendering failed in ${label}.`, error);
+      }
+    });
   }
 
   function renderOutlook(analysis) {
@@ -2412,11 +2433,18 @@
     return `<span class="audit-pair" title="${esc(`T1=${source}${right ? ` | T2=${right}` : ''}`)}"><b>${esc(auditDisplay(col, a))}</b>${b === null || b === undefined ? '' : `<em>${esc(auditDisplay(col, b))}</em>`}</span>`;
   }
   function profileAuditFields() {
-    const sampleRole = roleOrder().find((role) => Object.keys(DATA?.championProfiles?.[role] || {}).length);
-    const sample = sampleRole ? Object.values(DATA.championProfiles[sampleRole])[0] : null;
-    if (!sample) return [];
-    const base = Object.keys(sample).filter((key) => !['percentiles', 'coverage'].includes(key)).map((key) => ({ key, label: auditHumanLabel(key) }));
-    const percentileRows = Object.keys(sample.percentiles || {}).map((key) => ({ key: `percentiles.${key}`, label: `${auditHumanLabel(key)} — confronto con il ruolo` }));
+    const baseKeys = new Set();
+    const percentileKeys = new Set();
+    roleOrder().forEach((role) => {
+      Object.values(DATA?.championProfiles?.[role] || {}).forEach((profile) => {
+        Object.keys(profile || {}).forEach((key) => {
+          if (!['percentiles', 'coverage'].includes(key)) baseKeys.add(key);
+        });
+        Object.keys(profile?.percentiles || {}).forEach((key) => percentileKeys.add(key));
+      });
+    });
+    const base = Array.from(baseKeys).sort(localeSort).map((key) => ({ key, label: auditHumanLabel(key) }));
+    const percentileRows = Array.from(percentileKeys).sort(localeSort).map((key) => ({ key: `percentiles.${key}`, label: `${auditHumanLabel(key)} — confronto con il ruolo` }));
     return base.concat(percentileRows, [{ key: 'coverage.n_matchups', label: 'Avversari con dati disponibili' }, { key: 'coverage.total_games', label: 'Partite disponibili nel profilo' }, { key: 'comeback_risk', label: 'Rischio di rimonta stimato' }]);
   }
   function nestedValue(obj, key) {
@@ -2628,6 +2656,18 @@
     });
   }
 
+  function invalidateStaleAnalysis() {
+    if (!state.lastAnalysis) return;
+    state.lastAnalysis = null;
+    const region = byId('analysisRegion');
+    const empty = byId('emptyState');
+    if (region) region.hidden = true;
+    if (empty) {
+      empty.hidden = false;
+      empty.textContent = 'La selezione è cambiata. Premi “Analizza draft” per aggiornare il dossier.';
+    }
+  }
+
   function createCombobox(box) {
     const input = $('input', box);
     const list = $('.combo-list', box);
@@ -2701,6 +2741,7 @@
 
     input.addEventListener('input', () => {
       normalizeTypedValue();
+      invalidateStaleAnalysis();
       render(input.value);
     });
 

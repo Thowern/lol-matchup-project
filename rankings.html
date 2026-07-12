@@ -2430,6 +2430,25 @@ summary::marker { color:var(--champ-a); }
   .combat-pill-grid { grid-template-columns:1fr 1fr; }
   .combat-band, .combat-team-card, .combat-summary-card { padding:15px; }
 }
+
+
+/* POOL BUILDER NAVIGATION — fourth shared module */
+.nav-links {
+  grid-template-columns: repeat(4, minmax(120px, 1fr)) !important;
+  width: min(100%, 700px) !important;
+}
+@media (max-width: 980px) {
+  .nav-links {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    width: 100% !important;
+  }
+}
+@media (max-width: 620px) {
+  .nav-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
 </style>
 
 <style>
@@ -2563,6 +2582,7 @@ body.mode-ranking .threshold-preset small{font-size:6px!important;line-height:1.
       <a class="nav-link" href="./visual.html">Matchup 1v1</a>
       <a class="nav-link" href="./tm_data.html">Modalità Team</a>
       <a class="nav-link active" href="./rankings.html" aria-current="page">Classifiche</a>
+      <a class="nav-link" href="./pool.html">Pool Builder</a>
     </nav>
     <div class="data-status-pill loading" id="dataStatus">Caricamento dati</div>
   </div>

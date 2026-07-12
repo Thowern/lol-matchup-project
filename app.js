@@ -1862,7 +1862,7 @@
     var killEfficiency = M.direct('kill_value_efficiency_15m_a');
     var goldNoBounty = M.diffAB('gold_diff_without_bounty_15m_a_minus_b');
     var bountyShare = M.direct('bounty_share_of_gold_diff_15m');
-    var resourcePressure = M.direct('resource_winpct_pressure_estimate_a_15m');
+    var resourcePressure = M.diffAB('resource_winpct_pressure_estimate_a_15m');
 
     var econRows = [
       { label: 'Oro @15', value: gold15, scale: 2200, format: function (v) { return isNum(v) ? (v > 0 ? '+' : '') + fmtInt(v) : '—'; } },
@@ -2007,7 +2007,11 @@
       } else if (col === 'comeback_risk_a') {
         var risks = profileRiskPair(); a = risks[0]; b = risks[1];
       } else if (/^pct_champion_a_/.test(col) || /^pct_a_/.test(col) || col === 'monster_sequence_control_avg_a') {
-        a = M.pctA(col); b = isNum(a) ? 1 - a : null;
+        a = M.pctA(col);
+        if (col === 'pct_a_first_kill_in_pair') b = M.pctA('pct_a_first_death_in_pair');
+        else if (col === 'pct_a_first_death_in_pair') b = M.pctA('pct_a_first_kill_in_pair');
+        else if (col === 'pct_a_kill_adv_15m' || col === 'pct_a_bounty_net_adv_15m') b = null;
+        else b = isNum(a) ? 1 - a : null;
       } else if ((/_a_minus_b$/.test(col) && !RAW_INVARIANT_DIFF_FIELDS[col]) || RAW_SIGNED_PERSPECTIVE_FIELDS[col]) {
         a = M.diffAB(col); b = isNum(a) ? -a : null;
       } else if (/^(gold|xp|excess_gold|excess_xp)_diff_by_minute$/.test(col)) {
@@ -2470,7 +2474,7 @@
       var seqAvg = M.pctA('monster_sequence_control_avg_a');
       var seqScore = M.diffAB('monster_sequence_control_score_a');
       var seqDiff = M.diffAB('monster_sequence_diff_total_a_minus_b');
-      var objConv = M.direct('objective_conversion_score_a');
+      var objConv = M.diffAB('objective_conversion_score_a');
 
       if (isNum(seqAvg) || isNum(seqScore) || isNum(seqDiff) || isNum(objConv)) {
         any = true;
