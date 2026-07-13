@@ -117,6 +117,14 @@
     });
   }
 
+  function champHtml(name, size, className) {
+    if (!name) return '—';
+    if (window.ChampionIcons && typeof window.ChampionIcons.html === 'function') {
+      return window.ChampionIcons.html(name, { size: size || 'sm', className: className || '' });
+    }
+    return esc(name);
+  }
+
   function confidence(n) {
     if (n >= DATA.meta.min_matches_solid) return { level: 'high', label: 'Molte partite disponibili' };
     if (n >= DATA.meta.min_matches_confident) return { level: 'mid', label: 'Numero di partite discreto' };
@@ -275,7 +283,7 @@
           var cls = 'combobox-option' + (o.low ? ' low' : '') + (i === activeIndex ? ' active' : '');
           var meta = o.meta !== undefined ? '<span class="n">' + esc(o.meta) + '</span>' : '';
           return '<div class="' + cls + '" role="option" data-value="' + esc(o.value) + '">' +
-            '<span>' + esc(o.label) + '</span>' + meta + '</div>';
+            champHtml(o.label, 'sm', 'combobox-champion') + meta + '</div>';
         }).join('');
       }
       list._filtered = filtered;
@@ -464,7 +472,7 @@
     var pb = state.role && state.champB ? ((DATA.championProfiles[state.role] || {})[state.champB] || null) : null;
     if (hintA) {
       if (state.champA && pa && pa.coverage) {
-        hintA.innerHTML = '<strong>' + esc(state.champA) + '</strong> · ' + fmtInt(pa.coverage.n_matchups) + ' matchup · ' + fmtInt(pa.coverage.total_games) + ' partite da ' + roleLabelText;
+        hintA.innerHTML = '<strong>' + champHtml(state.champA, 'xs') + '</strong> · ' + fmtInt(pa.coverage.n_matchups) + ' matchup · ' + fmtInt(pa.coverage.total_games) + ' partite da ' + roleLabelText;
       } else if (state.role) {
         hintA.textContent = 'Scegli il primo campione nel ruolo ' + roleLabelText + '.';
       } else {
@@ -473,7 +481,7 @@
     }
     if (hintB) {
       if (state.champB && pb && pb.coverage) {
-        hintB.innerHTML = '<strong>' + esc(state.champB) + '</strong> · ' + fmtInt(pb.coverage.n_matchups) + ' matchup · ' + fmtInt(pb.coverage.total_games) + ' partite da ' + roleLabelText;
+        hintB.innerHTML = '<strong>' + champHtml(state.champB, 'xs') + '</strong> · ' + fmtInt(pb.coverage.n_matchups) + ' matchup · ' + fmtInt(pb.coverage.total_games) + ' partite da ' + roleLabelText;
       } else if (state.champA) {
         hintB.textContent = 'Ora scegli un avversario con dati diretti contro ' + state.champA + '.';
       } else {
@@ -643,7 +651,7 @@
 
     var html = '';
     html += '<div class="verdict-top">';
-    html += '<div><div class="matchup-title"><span class="name-a">' + esc(champA) + '</span><span class="vs-x">vs</span><span class="name-b">' + esc(champB) + '</span></div>';
+    html += '<div><div class="matchup-title"><span class="name-a">' + champHtml(champA, 'md') + '</span><span class="vs-x">vs</span><span class="name-b">' + champHtml(champB, 'md') + '</span></div>';
     html += '<div class="role-tag">' + ROLE_LONG[role] + '</div></div>';
     html += '<div class="sample-badge ' + conf.level + '"><span class="dot"></span>' + conf.label + ' — ' + fmtInt(n) + ' partite</div>';
     html += '</div>';
@@ -653,11 +661,11 @@
       '<div class="fill-b" style="width:' + (wr[1] * 100) + '%">' + fmtPct(wr[1], 1) + '</div></div>';
 
     html += '<div class="verdict-foot">';
-    html += '<div class="verdict-col a"><div class="champ-name">' + esc(champA) + '</div>' +
+    html += '<div class="verdict-col a"><div class="champ-name">' + champHtml(champA, 'sm') + '</div>' +
       '<div class="row"><span>Percentuale di vittorie in questo confronto</span><span class="v">' + fmtPct(wr[0], 1) + '</span></div>' +
       '<div class="row"><span>Percentuale di vittorie abituale da ' + ROLE_LABELS[role] + '</span><span class="v">' + fmtPct(genWr[0], 1) + '</span></div>' +
       '<div class="row"><span>Scarto</span><span class="v">' + fmtSignedPct(diffWr[0], 1) + '</span></div></div>';
-    html += '<div class="verdict-col b"><div class="champ-name">' + esc(champB) + '</div>' +
+    html += '<div class="verdict-col b"><div class="champ-name">' + champHtml(champB, 'sm') + '</div>' +
       '<div class="row"><span>Percentuale di vittorie in questo confronto</span><span class="v">' + fmtPct(wr[1], 1) + '</span></div>' +
       '<div class="row"><span>Percentuale di vittorie abituale da ' + ROLE_LABELS[role] + '</span><span class="v">' + fmtPct(genWr[1], 1) + '</span></div>' +
       '<div class="row"><span>Scarto</span><span class="v">' + fmtSignedPct(diffWr[1], 1) + '</span></div></div>';
@@ -707,12 +715,12 @@
     html += '<div class="card full-span"><div class="card-head"><h3>Profilo dei due campioni nel ruolo</h3>' +
       '<span class="card-sub">Percentile calcolato su ' + (DATA.meta.roles_champions[role] || []).length + ' campioni ' + ROLE_LABELS[role] + '</span></div>' + rows + '</div>';
 
-    html += '<div class="card"><div class="card-head"><h3>' + esc(champA) + '</h3></div>' +
+    html += '<div class="card"><div class="card-head"><h3>' + champHtml(champA, 'sm') + '</h3></div>' +
       '<div class="stat-grid">' +
       '<div class="stat-card"><div class="label">Matchup registrati</div><div class="value a">' + fmtInt(covA.n_matchups) + '</div></div>' +
       '<div class="stat-card"><div class="label">Partite totali (ruolo)</div><div class="value a">' + fmtInt(covA.total_games) + '</div></div>' +
       '</div></div>';
-    html += '<div class="card"><div class="card-head"><h3>' + esc(champB) + '</h3></div>' +
+    html += '<div class="card"><div class="card-head"><h3>' + champHtml(champB, 'sm') + '</h3></div>' +
       '<div class="stat-grid">' +
       '<div class="stat-card"><div class="label">Matchup registrati</div><div class="value b">' + fmtInt(covB.n_matchups) + '</div></div>' +
       '<div class="stat-card"><div class="label">Partite totali (ruolo)</div><div class="value b">' + fmtInt(covB.total_games) + '</div></div>' +
@@ -1751,7 +1759,7 @@
     var html = '';
     html += '<section class="v2-hero">';
     html += '<div class="v2-hero-top"><div><div class="v2-eyebrow">Lettura del confronto · ' + esc(ROLE_LABELS[role]) + '</div>';
-    html += '<h2><span class="name-a">' + esc(champA) + '</span><em>vs</em><span class="name-b">' + esc(champB) + '</span></h2>';
+    html += '<h2><span class="name-a">' + champHtml(champA, 'md') + '</span><em>vs</em><span class="name-b">' + champHtml(champB, 'md') + '</span></h2>';
     html += '<p>' + esc(outlook) + '. La lettura combina i risultati del confronto diretto, il rendimento abituale dei campioni, i primi 15 minuti e il numero di partite disponibili.</p></div>';
     html += '<div class="sample-badge ' + conf.level + '"><span class="dot"></span>' + conf.label + ' · ' + fmtInt(n) + ' partite</div></div>';
     html += '<div class="v2-verdict-main"><div class="v2-big-number ' + (favoredIsLeft ? 'a' : 'b') + '"><span>Segnale principale</span><strong>' + fmtPct(favoredWr, 1) + '</strong><em>' + esc(favoredName) + '</em></div>';

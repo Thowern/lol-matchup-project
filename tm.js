@@ -146,6 +146,13 @@
       .replaceAll("'", '&#039;');
   }
 
+  function champHtml(name, size = 'sm', className = '') {
+    if (!name) return '—';
+    return window.ChampionIcons?.html
+      ? window.ChampionIcons.html(name, { size, className })
+      : esc(name);
+  }
+
   function safeNumber(value) {
     if (value === null || value === undefined || value === '') return null;
     const n = Number(value);
@@ -1675,9 +1682,9 @@
         <div class="lane-role-badge">${esc(roleLabel(lane.role))}</div>
         <div class="lane-versus">
           <strong>
-            <span class="t1">${esc(lane.team1Champion || '—')}</span>
+            <span class="t1">${lane.team1Champion ? champHtml(lane.team1Champion, 'sm') : '—'}</span>
             <span class="vs">vs</span>
-            <span class="t2">${esc(lane.team2Champion || '—')}</span>
+            <span class="t2">${lane.team2Champion ? champHtml(lane.team2Champion, 'sm') : '—'}</span>
           </strong>
           <span>${esc(laneSubline(lane))}</span>
         </div>
@@ -2087,7 +2094,7 @@
     if (!rows.length) return '';
     return `
       <article class="advanced-map-card">
-        <div class="advanced-card-head"><div><span>Jungle objective network</span><h3>Controllo per sottotipo di mostro</h3></div><em>${esc(jungle.team1Champion)} vs ${esc(jungle.team2Champion)}</em></div>
+        <div class="advanced-card-head"><div><span>Jungle objective network</span><h3>Controllo per sottotipo di mostro</h3></div><em>${champHtml(jungle.team1Champion, 'xs')} <span>vs</span> ${champHtml(jungle.team2Champion, 'xs')}</em></div>
         <div class="advanced-monster-grid">
           ${rows.map((row) => {
             const a = Math.max(0, Math.min(100, row.pctValue * 100));
@@ -2125,7 +2132,7 @@
 
     const lanes = analysis.exact.map((lane) => `
       <article class="advanced-lane-card">
-        <header><div><span>${esc(roleLabel(lane.role))}</span><strong>${esc(lane.team1Champion)} <em>vs</em> ${esc(lane.team2Champion)}</strong></div><b>${esc(compactNumber(lane.n_matches))} game</b></header>
+        <header><div><span>${esc(roleLabel(lane.role))}</span><strong>${champHtml(lane.team1Champion, 'xs')} <em>vs</em> ${champHtml(lane.team2Champion, 'xs')}</strong></div><b>${esc(compactNumber(lane.n_matches))} game</b></header>
         <div class="advanced-lane-pills">
           ${advancedLanePill('No-bounty gold', lane.gold_diff_without_bounty_15m_a_minus_b, 700, (v) => intFmt(v, 'g'))}
           ${advancedLanePill('Excess K-D', lane.excess_early_kd_pressure_15m_a_minus_b, 0.8, (v) => signedDecimal(v, 2))}
@@ -2816,7 +2823,7 @@
           : 'profilo disponibile';
     return `
       <div class="combo-option ${active ? 'active' : ''} ${item.low ? 'low' : ''}" role="option" data-champion="${esc(item.champ)}">
-        <span>${esc(item.champ)}</span>
+        ${champHtml(item.champ, 'sm')}
         <span class="meta">${esc(meta)}</span>
       </div>
     `;

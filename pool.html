@@ -1884,6 +1884,183 @@ summary::marker { color:var(--champ-a); }
 .pool-method-item span { display:block; color:var(--champ-a); font-family:var(--font-mono); font-size:8px; font-weight:850; letter-spacing:.08em; text-transform:uppercase; }
 .pool-method-item strong { display:block; margin-top:6px; color:var(--ink-soft); font-size:12px; line-height:1.35; }
 
+
+.quick-counter-lab {
+  margin-top:var(--space-5);
+  padding:clamp(20px,3vw,30px);
+  border-color:var(--champ-a-line);
+  background:
+    radial-gradient(700px 250px at 0 0,var(--champ-a-soft),transparent 72%),
+    radial-gradient(520px 240px at 100% 0,var(--info-soft),transparent 75%),
+    linear-gradient(150deg,var(--surface-2),var(--surface-1));
+}
+.quick-counter-intro { display:flex; justify-content:space-between; align-items:flex-start; gap:var(--space-5); }
+.quick-counter-intro h2 { margin:0; font-size:clamp(24px,3vw,34px); letter-spacing:-.05em; }
+.quick-counter-intro p { max-width:70ch; margin:8px 0 0; color:var(--ink-dim); font-size:13px; line-height:1.62; }
+.quick-format-example { flex:0 0 auto; min-width:min(100%,310px); padding:13px 15px; border:1px solid var(--champ-a-line); border-radius:var(--radius-lg); background:var(--champ-a-soft); }
+.quick-format-example span { display:block; color:var(--champ-a); font-family:var(--font-mono); font-size:8px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+.quick-format-example code { display:block; margin-top:7px; color:var(--ink); font-family:var(--font-mono); font-size:11px; line-height:1.5; overflow-wrap:anywhere; }
+.quick-input-grid { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(240px,.55fr); gap:12px; margin-top:var(--space-5); }
+.quick-paste-field { display:grid; gap:8px; min-width:0; }
+.quick-paste-field > span { color:var(--ink-faint); font-size:9px; font-weight:800; letter-spacing:.075em; text-transform:uppercase; }
+.quick-paste-field textarea {
+  width:100%; min-height:112px; resize:vertical; padding:14px 15px; border:1px solid var(--line); border-radius:var(--radius-lg); outline:none;
+  color:var(--ink); background:oklch(0% 0 0/.16); font-family:var(--font-mono); font-size:12px; line-height:1.65;
+  box-shadow:0 1px 0 oklch(100% 0 0/.04) inset;
+}
+.quick-paste-field textarea:focus { border-color:var(--champ-a-line); box-shadow:var(--focus-ring); }
+.quick-paste-field textarea::placeholder { color:var(--ink-muted); }
+.quick-paste-field small { color:var(--ink-faint); font-size:9.5px; }
+.quick-help-card { padding:14px 15px; border:1px solid var(--line-soft); border-radius:var(--radius-lg); background:oklch(0% 0 0/.12); }
+.quick-help-card strong { color:var(--ink-soft); font-size:12px; }
+.quick-help-card p { margin:8px 0 0; color:var(--ink-dim); font-size:10.5px; line-height:1.55; }
+.quick-help-card code { color:var(--info); font-family:var(--font-mono); font-size:9px; }
+.quick-action-row { display:flex; flex-wrap:wrap; gap:9px; margin-top:12px; }
+.quick-action-row .primary { width:auto; min-width:190px; }
+.quick-action-row .ghost { min-height:46px; }
+.quick-validation { margin:11px 0 0; padding:10px 12px; border:1px solid var(--danger-line); border-radius:var(--radius-sm); color:var(--danger); background:var(--danger-soft); font-size:10.5px; line-height:1.5; }
+.quick-validation.warning { border-color:var(--warning-line); color:var(--warning); background:var(--warning-soft); }
+.quick-validation.success { border-color:var(--success-line); color:var(--success); background:var(--success-soft); }
+.quick-counter-results { margin-top:var(--space-5); padding-top:var(--space-5); border-top:1px solid var(--line-soft); }
+.quick-counter-toolbar { margin-top:0; }
+.quick-results-head { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:16px; align-items:end; }
+.quick-results-head .counter-summary { margin-top:12px; }
+.quick-result-actions { display:flex; align-items:center; justify-content:flex-end; gap:9px; }
+.quick-result-actions .secondary { min-height:42px; white-space:nowrap; }
+.quick-table-wrap { margin-top:14px; overflow:auto; max-height:70vh; border:1px solid var(--line); border-radius:var(--radius-lg); background:oklch(0% 0 0/.13); scrollbar-color:var(--surface-3) transparent; }
+.quick-table-wrap:focus { outline:none; box-shadow:var(--focus-ring); }
+.quick-counter-table { width:100%; min-width:900px; border-collapse:separate; border-spacing:0; color:var(--ink-dim); font-size:10.5px; }
+.quick-counter-table th,
+.quick-counter-table td { padding:11px 12px; border-right:1px solid var(--line-soft); border-bottom:1px solid var(--line-soft); text-align:left; vertical-align:top; }
+.quick-counter-table thead th { position:sticky; top:0; z-index:4; color:var(--ink-soft); background:color-mix(in oklch,var(--surface-2) 94%,black); font-family:var(--font-mono); font-size:8px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
+.quick-counter-table tbody th { position:sticky; left:0; z-index:2; min-width:150px; color:var(--ink); background:color-mix(in oklch,var(--surface-1) 94%,black); font-size:12px; }
+.quick-counter-table tr:last-child > * { border-bottom:0; }
+.quick-counter-table tr > *:last-child { border-right:0; }
+.quick-counter-table tbody tr:hover > * { background-color:var(--info-soft); }
+.quick-number { color:var(--ink-soft); font-family:var(--font-mono); white-space:nowrap; }
+.quick-pool-badge,
+.quick-out-badge { display:inline-flex; padding:5px 7px; border-radius:var(--radius-pill); font-family:var(--font-mono); font-size:7px; font-weight:900; letter-spacing:.05em; text-transform:uppercase; white-space:nowrap; }
+.quick-pool-badge { border:1px solid var(--champ-a-line); color:var(--champ-a); background:var(--champ-a-soft); }
+.quick-out-badge { border:1px solid var(--line); color:var(--ink-faint); background:oklch(0% 0 0/.12); }
+.quick-table-counter { display:grid; grid-template-columns:auto minmax(80px,1fr) auto; gap:3px 7px; min-width:190px; color:var(--ink-soft); text-decoration:none; }
+.quick-table-counter > span { color:var(--info); font-family:var(--font-mono); font-size:7.5px; font-weight:900; }
+.quick-table-counter strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; }
+.quick-table-counter em { color:var(--ink); font-family:var(--font-mono); font-size:10.5px; font-style:normal; font-weight:900; }
+.quick-table-counter small { grid-column:2 / -1; color:var(--ink-faint); font-family:var(--font-mono); font-size:7.5px; line-height:1.4; white-space:nowrap; }
+a.quick-table-counter:hover strong { color:var(--info); }
+.quick-table-counter.unavailable { opacity:.6; }
+.quick-counter-empty { color:var(--ink-muted); text-align:center!important; }
+.quick-table-no-results { padding:28px!important; color:var(--ink-faint); text-align:center!important; }
+
+.counter-coverage-panel {
+  border-color:var(--info-line);
+  background:
+    radial-gradient(620px 220px at 100% 0,var(--info-soft),transparent 72%),
+    linear-gradient(155deg,var(--surface-2),var(--surface-1));
+}
+.counter-coverage-head {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:var(--space-4);
+}
+.counter-coverage-head h2 { margin:0; font-size:clamp(22px,2.4vw,30px); letter-spacing:-.045em; }
+.counter-coverage-head p { max-width:76ch; margin:7px 0 0; color:var(--ink-dim); font-size:13px; line-height:1.62; }
+.counter-toolbar {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(150px,1fr));
+  gap:10px;
+  margin-top:var(--space-5);
+  padding:14px;
+  border:1px solid var(--line-soft);
+  border-radius:var(--radius-lg);
+  background:oklch(0% 0 0/.13);
+}
+.counter-control { display:grid; gap:7px; min-width:0; }
+.counter-control > span { color:var(--ink-faint); font-size:9px; font-weight:800; letter-spacing:.075em; text-transform:uppercase; }
+.counter-control select,
+.counter-control input {
+  width:100%;
+  min-width:0;
+  min-height:43px;
+  padding:0 12px;
+  border:1px solid var(--line);
+  border-radius:var(--radius-sm);
+  outline:none;
+  color:var(--ink-soft);
+  background:linear-gradient(180deg,var(--surface-2),var(--surface-1));
+  font-family:var(--font-sans);
+  font-size:12px;
+  font-weight:700;
+  box-shadow:0 1px 0 oklch(100% 0 0/.04) inset;
+}
+.counter-control select:focus,
+.counter-control input:focus { border-color:var(--info-line); box-shadow:0 0 0 3px var(--info-soft); }
+.counter-control input::placeholder { color:var(--ink-muted); }
+.counter-summary {
+  margin-top:12px;
+  padding:12px 14px;
+  border:1px solid var(--info-line);
+  border-radius:var(--radius-sm);
+  color:var(--ink-dim);
+  background:var(--info-soft);
+  font-size:11px;
+  line-height:1.58;
+}
+.counter-summary strong { color:var(--ink-soft); }
+.counter-metric-note { margin:9px 2px 0; color:var(--ink-faint); font-size:10.5px; line-height:1.55; }
+.counter-coverage-rows { display:grid; gap:10px; margin-top:var(--space-4); }
+.pool-counter-target {
+  display:grid;
+  grid-template-columns:minmax(170px,.52fr) minmax(0,1.48fr);
+  gap:14px;
+  align-items:start;
+  padding:14px;
+  border:1px solid var(--line-soft);
+  border-radius:var(--radius-lg);
+  background:linear-gradient(150deg,oklch(100% 0 0/.025),oklch(0% 0 0/.11));
+}
+.counter-target-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; min-width:0; }
+.counter-target-head h3 { margin:0; color:var(--ink); font-size:16px; letter-spacing:-.03em; overflow-wrap:anywhere; }
+.counter-target-head p { margin:6px 0 0; color:var(--ink-faint); font-family:var(--font-mono); font-size:8.5px; text-transform:uppercase; }
+.counter-badge {
+  flex:0 0 auto;
+  padding:5px 7px;
+  border:1px solid var(--champ-a-line);
+  border-radius:var(--radius-pill);
+  color:var(--champ-a);
+  background:var(--champ-a-soft);
+  font-family:var(--font-mono);
+  font-size:7.5px;
+  font-weight:850;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.counter-answer-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:8px; min-width:0; }
+.pool-counter-answer {
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  gap:4px 8px;
+  align-items:center;
+  min-width:0;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:var(--radius-sm);
+  color:var(--ink-soft);
+  background:oklch(0% 0 0/.13);
+  text-decoration:none;
+  transition:transform var(--duration-fast) var(--ease),border-color var(--duration-fast) var(--ease),background var(--duration-fast) var(--ease);
+}
+a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--info-line); background:var(--info-soft); }
+.counter-answer-rank { color:var(--info); font-family:var(--font-mono); font-size:8px; font-weight:900; }
+.pool-counter-answer strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+.counter-answer-primary { color:var(--ink); font-family:var(--font-mono); font-size:12px; font-weight:900; }
+.pool-counter-answer small { grid-column:2 / -1; color:var(--ink-faint); font-family:var(--font-mono); font-size:7.8px; line-height:1.4; }
+.pool-counter-answer.unavailable { opacity:.62; }
+.pool-counter-answer.unavailable .counter-answer-primary { color:var(--warning); }
+.counter-no-answer,
+.counter-empty { padding:16px; border:1px dashed var(--line); border-radius:var(--radius-sm); color:var(--ink-faint); background:oklch(0% 0 0/.10); font-size:11px; line-height:1.55; text-align:center; }
+
 @media (max-width: 1180px) {
   .pool-builder-grid { grid-template-columns:1fr; }
   .pool-setup-card { position:relative; top:auto; }
@@ -1893,6 +2070,11 @@ summary::marker { color:var(--champ-a); }
 }
 @media (max-width: 980px) {
   .pool-hero .hero-card { grid-template-columns:1fr; min-height:0; }
+  .quick-counter-intro { display:grid; }
+  .quick-format-example { min-width:0; width:100%; }
+  .quick-input-grid { grid-template-columns:1fr; }
+  .counter-toolbar { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .pool-counter-target { grid-template-columns:1fr; }
   .pool-hero .hero-card::after { display:none; }
   .pool-hero .hero-side { grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:stretch; }
   .pool-hero .hero-mini-grid { align-content:stretch; }
@@ -1911,6 +2093,14 @@ summary::marker { color:var(--champ-a); }
 }
 @media (max-width: 620px) {
   #poolBuilderApp { padding-bottom:var(--space-9); }
+  .quick-counter-lab { padding:18px; border-radius:22px; }
+  .quick-results-head { grid-template-columns:1fr; }
+  .quick-result-actions { justify-content:stretch; flex-wrap:wrap; }
+  .quick-result-actions .secondary { flex:1; }
+  .quick-action-row > * { width:100%!important; }
+  .counter-coverage-head { display:grid; }
+  .counter-toolbar { grid-template-columns:1fr; padding:12px; }
+  .counter-answer-list { grid-template-columns:1fr; }
   .topbar-inner { align-items:stretch !important; }
   .brand { width:auto; }
   .data-status-pill { width:100%; justify-self:stretch; }
@@ -1988,6 +2178,65 @@ summary::marker { color:var(--champ-a); }
         <div class="hero-rail-card"><span class="rail-dot a"></span><span class="rail-line"></span><span class="rail-dot b"></span><p><strong>Principio guida:</strong> il builder non cerca soltanto campioni forti. Premia il valore marginale del nuovo pick, riduce l’impatto dei campioni piccoli e conserva peso per i matchup peggiori.</p></div>
       </aside>
     </div>
+  </section>
+
+
+  <section class="pool-work-card quick-counter-lab" aria-labelledby="quickCounterTitle">
+    <div class="quick-counter-intro">
+      <div>
+        <div class="micro-label pool-card-kicker">Analisi immediata</div>
+        <h2 id="quickCounterTitle">Incolla una pool e genera la tabella</h2>
+        <p>Non devi avviare il builder. Indica prima la lane, poi separa i campioni con <strong>/</strong>, virgole o righe nuove.</p>
+      </div>
+      <div class="quick-format-example"><span>Formato</span><code>TOP — Singed / Irelia / Nasus</code></div>
+    </div>
+
+    <div class="quick-input-grid">
+      <label class="quick-paste-field" for="quickPoolInput">
+        <span>Lane e champion pool</span>
+        <textarea id="quickPoolInput" rows="3" spellcheck="false" placeholder="TOP — Singed / Irelia / Nasus"></textarea>
+        <small>Scorciatoia: Ctrl/⌘ + Invio per generare.</small>
+      </label>
+      <div class="quick-help-card">
+        <strong>Alias riconosciuti</strong>
+        <p><code>TOP</code>, <code>JUNGLE/JGL</code>, <code>MID</code>, <code>BOT/ADC</code>, <code>SUPPORT/SUPP</code>.</p>
+        <p>I campioni non trovati nella lane vengono ignorati e segnalati senza bloccare gli altri.</p>
+      </div>
+    </div>
+
+    <div class="quick-action-row">
+      <button id="quickAnalyzeBtn" class="primary" type="button">Genera la tabella</button>
+      <button id="quickExampleBtn" class="ghost" type="button">Usa l’esempio</button>
+      <button id="quickClearBtn" class="ghost" type="button">Pulisci</button>
+    </div>
+    <p id="quickPoolValidation" class="quick-validation" hidden></p>
+
+    <section id="quickCounterResults" class="quick-counter-results" hidden aria-label="Tabella counter rapida">
+      <div class="counter-toolbar quick-counter-toolbar">
+        <label class="counter-control"><span>Campioni analizzati</span><select id="quickScopeSelect"><option value="q50">Q50</option><option value="all">Tutti</option></select></label>
+        <label class="counter-control"><span>Ordina la pool per</span><select id="quickMetricSelect"><option value="wilson">Wilson prudenziale</option><option value="decision">Indice Pool Builder</option><option value="winrate">Win rate matchup</option><option value="diff">Scarto dal WR abituale</option><option value="games">Numero di partite</option></select></label>
+        <label id="quickConfidenceField" class="counter-control"><span>Prudenza Wilson</span><select id="quickConfidenceSelect"><option value="90">90% · esplorativo</option><option value="95">95% · bilanciato</option><option value="99" selected>99% · prudente</option></select></label>
+        <label class="counter-control"><span>Cerca nella tabella</span><input id="quickSearchInput" type="search" autocomplete="off" placeholder="Es. Darius"></label>
+      </div>
+
+      <div class="quick-results-head">
+        <div>
+          <div id="quickCounterSummary" class="counter-summary"></div>
+          <p class="counter-metric-note">La ricerca filtra le righe della tabella; il CSV scaricato contiene esattamente le righe visibili.</p>
+        </div>
+        <div class="quick-result-actions">
+          <span id="quickCounterCount" class="reco-count">—</span>
+          <button id="quickDownloadBtn" class="secondary" type="button" disabled>Scarica CSV</button>
+        </div>
+      </div>
+
+      <div class="quick-table-wrap" tabindex="0" aria-label="Tabella scorrevole dei counter">
+        <table id="quickCounterTable" class="quick-counter-table">
+          <thead id="quickCounterTableHead"></thead>
+          <tbody id="quickCounterTableBody"></tbody>
+        </table>
+      </div>
+    </section>
   </section>
 
   <div class="pool-builder-grid">
@@ -2071,12 +2320,35 @@ summary::marker { color:var(--champ-a); }
       </section>
 
       <section id="finalPanel" class="pool-work-card final-panel" hidden><div id="finalContent"></div></section>
+
+      <section id="counterCoveragePanel" class="pool-work-card counter-coverage-panel" hidden>
+        <div class="counter-coverage-head">
+          <div>
+            <div class="micro-label pool-card-kicker">Pool vs lane</div>
+            <h2>Copertura counter della pool</h2>
+            <p>Per ogni campione del ruolo mostra quale pick della tua pool lo affronta meglio. Le righe includono anche i campioni già scelti, ma un campione non viene mai confrontato contro sé stesso.</p>
+          </div>
+          <div id="counterResultCount" class="reco-count">—</div>
+        </div>
+
+        <div class="counter-toolbar" aria-label="Opzioni copertura counter">
+          <label class="counter-control"><span>Campioni analizzati</span><select id="counterScopeSelect"><option value="q50">Q50</option><option value="all">Tutti</option></select></label>
+          <label class="counter-control"><span>Ordina la pool per</span><select id="counterMetricSelect"><option value="wilson">Wilson prudenziale</option><option value="decision">Indice Pool Builder</option><option value="winrate">Win rate matchup</option><option value="diff">Scarto dal WR abituale</option><option value="games">Numero di partite</option></select></label>
+          <label id="counterConfidenceField" class="counter-control"><span>Prudenza Wilson</span><select id="counterConfidenceSelect"><option value="90">90% · esplorativo</option><option value="95">95% · bilanciato</option><option value="99" selected>99% · prudente</option></select></label>
+          <label class="counter-control counter-search"><span>Filtra campione</span><input id="counterSearchInput" type="search" autocomplete="off" placeholder="Cerca nella lane"></label>
+        </div>
+
+        <div id="counterCoverageSummary" class="counter-summary"></div>
+        <p id="counterMetricNote" class="counter-metric-note"></p>
+        <div id="counterCoverageRows" class="counter-coverage-rows"></div>
+      </section>
     </section>
   </div>
 </main>
 <div id="liveRegion" class="sr-only" aria-live="polite"></div>
 <script src="./matchup_data.js"></script>
 <script src="./pool.config.js"></script>
+<script src="./champion-icons.js"></script>
 <script src="./pool.js"></script>
 </body>
 </html>

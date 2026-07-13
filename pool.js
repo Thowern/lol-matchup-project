@@ -5,6 +5,13 @@
   const CONFIG = window.POOL_BUILDER_CONFIG;
   const ROLE_ORDER_FALLBACK = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
   const ROLE_LABELS = { TOP: 'Top', JUNGLE: 'Jungle', MIDDLE: 'Mid', BOTTOM: 'BOT', UTILITY: 'Support' };
+  const ROLE_ALIASES = {
+    top: 'TOP',
+    jungle: 'JUNGLE', jgl: 'JUNGLE', jungler: 'JUNGLE',
+    middle: 'MIDDLE', mid: 'MIDDLE',
+    bottom: 'BOTTOM', bot: 'BOTTOM', adc: 'BOTTOM', carry: 'BOTTOM',
+    utility: 'UTILITY', support: 'UTILITY', supp: 'UTILITY', sup: 'UTILITY'
+  };
 
   // --------------------------------------------------------------------------
   // MAPPA DEL FILE
@@ -20,6 +27,35 @@
   const PROFILE_VECTOR_FIELDS = CONFIG?.profileDiversity?.fields || [];
   const RECOMMENDATION_LIMIT = CONFIG?.recommendation?.limit ?? 7;
   const MATCHUP_NEUTRAL = CONFIG?.matchup?.neutralWinrate ?? 0.50;
+  const POOL_COUNTER_QUANTILE = 0.50;
+  const DEFAULT_POOL_COUNTER_CONFIDENCE = 99;
+  const WILSON_Z = {
+    90: 1.6448536269514722,
+    95: 1.959963984540054,
+    99: 2.5758293035489004
+  };
+  const POOL_COUNTER_METRICS = {
+    wilson: {
+      label: 'Wilson prudenziale',
+      description: 'Ordina per il limite inferiore Wilson: premia il win rate ma penalizza automaticamente i matchup con poche partite.'
+    },
+    decision: {
+      label: 'Indice Pool Builder',
+      description: 'Usa lo stesso indice del builder: combina win rate, scarto dal rendimento abituale e riduzione verso il 50% quando il campione statistico è piccolo.'
+    },
+    winrate: {
+      label: 'Win rate matchup',
+      description: 'Ordina direttamente per percentuale di vittorie del campione della pool contro l’avversario indicato.'
+    },
+    diff: {
+      label: 'Scarto dal WR abituale',
+      description: 'Premia chi rende meglio del proprio win rate generale proprio in questo matchup.'
+    },
+    games: {
+      label: 'Numero di partite',
+      description: 'Mostra per primi i confronti con il campione statistico più ampio.'
+    }
+  };
 
   const state = {
     role: null,
@@ -32,7 +68,19 @@
     opponents: [],
     recommendationRows: [],
     customChampion: null,
-    comboControllers: []
+    comboControllers: [],
+    counterScope: 'q50',
+    counterMetric: 'wilson',
+    counterConfidence: DEFAULT_POOL_COUNTER_CONFIDENCE,
+    counterQuery: '',
+    quickRole: null,
+    quickPool: [],
+    quickScope: 'q50',
+    quickMetric: 'wilson',
+    quickConfidence: DEFAULT_POOL_COUNTER_CONFIDENCE,
+    quickQuery: '',
+    quickMatrix: null,
+    quickUnknownChampions: []
   };
 
   const byId = (id) => document.getElementById(id);
@@ -124,6 +172,13 @@
       .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
   }
 
+  function champHtml(name, size = 'sm', className = '') {
+    if (!name) return '—';
+    return window.ChampionIcons?.html
+      ? window.ChampionIcons.html(name, { size, className })
+      : esc(name);
+  }
+
   function localeSort(a, b) {
     return String(a).localeCompare(String(b), 'it', { sensitivity: 'base' });
   }
@@ -131,6 +186,12 @@
   function pct(value, digits = 1) {
     const number = safeNumber(value);
     return number === null ? '—' : `${(number * 100).toFixed(digits)}%`;
+  }
+
+  function signedPct(value, digits = 1) {
+    const number = safeNumber(value);
+    if (number === null) return '—';
+    return `${number > 0 ? '+' : ''}${(number * 100).toFixed(digits)}pp`;
   }
 
   function integer(value) {
@@ -183,6 +244,83 @@
     return Array.from(names).filter((name) => profilesForRole(role)[name]).sort(localeSort);
   }
 
+
+  function normalizeLookup(value) {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLocaleLowerCase('it')
+      .replace(/[^a-z0-9]+/g, '');
+  }
+
+  function resolveRoleAlias(value) {
+    const normalized = normalizeLookup(value);
+    const direct = ROLE_ALIASES[normalized];
+    if (direct && roleOrder().includes(direct)) return direct;
+    return roleOrder().find((role) => normalizeLookup(role) === normalized || normalizeLookup(roleLabel(role)) === normalized) || null;
+  }
+
+  function resolveChampionName(role, value) {
+    const typed = String(value ?? '').trim();
+    if (!typed) return null;
+    const champions = championsForRole(role);
+    const exact = champions.find((champion) => champion.toLocaleLowerCase('it') === typed.toLocaleLowerCase('it'));
+    if (exact) return exact;
+    const normalized = normalizeLookup(typed);
+    return champions.find((champion) => normalizeLookup(champion) === normalized) || null;
+  }
+
+  // Formato principale: TOP — Singed / Irelia / Nasus
+  // Sono accettati anche trattino, due punti, virgole, punto e virgola e righe multiple.
+  function parseQuickPoolText(rawText) {
+    const text = String(rawText ?? '').trim();
+    if (!text) return { role: null, pool: [], unknown: [], error: 'Incolla prima una lane e almeno un campione.' };
+    const match = text.match(/^\s*([A-Za-zÀ-ÿ]+)\s*(?:—|–|-|:|\|)\s*([\s\S]+)$/);
+    if (!match) {
+      return {
+        role: null,
+        pool: [],
+        unknown: [],
+        error: 'Formato non riconosciuto. Usa per esempio: TOP — Singed / Irelia / Nasus'
+      };
+    }
+
+    const role = resolveRoleAlias(match[1]);
+    if (!role) {
+      return {
+        role: null,
+        pool: [],
+        unknown: [],
+        error: `Lane “${match[1].trim()}” non riconosciuta. Usa Top, Jungle, Mid, BOT oppure Support.`
+      };
+    }
+
+    const tokens = match[2]
+      .split(/[\/,;\n]+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+    const pool = [];
+    const unknown = [];
+    tokens.forEach((token) => {
+      const champion = resolveChampionName(role, token);
+      if (!champion) {
+        unknown.push(token);
+        return;
+      }
+      if (!pool.includes(champion)) pool.push(champion);
+    });
+
+    if (!pool.length) {
+      return {
+        role,
+        pool: [],
+        unknown,
+        error: `Nessun campione riconosciuto per la lane ${roleLabel(role)}.`
+      };
+    }
+    return { role, pool, unknown, error: null };
+  }
+
   function quantile(sortedValues, q) {
     if (!sortedValues.length) return null;
     if (sortedValues.length === 1) return sortedValues[0];
@@ -204,14 +342,20 @@
     return safeNumber(coverage.n_matchups) ?? safeNumber(coverage.matchups) ?? 0;
   }
 
-  function calculateRigorousSet(role) {
+  function calculateRoleQuantileSet(role, rawQuantile) {
     const champions = championsForRole(role);
     const values = champions.map((champion) => profileGames(role, champion)).filter((value) => value > 0).sort((a, b) => a - b);
-    const configuredQuantile = CONFIG?.dataSelection?.rigorousQuantile ?? 0.75;
-    const threshold = quantile(values, configuredQuantile) ?? 0;
+    const selectedQuantile = clamp(rawQuantile, 0, 1);
+    const threshold = quantile(values, selectedQuantile) ?? 0;
     const eligible = champions.filter((champion) => profileGames(role, champion) >= threshold && profileGames(role, champion) > 0)
       .sort((a, b) => profileGames(role, b) - profileGames(role, a) || localeSort(a, b));
-    return { threshold, eligible, all: champions };
+    const all = champions.slice().sort((a, b) => profileGames(role, b) - profileGames(role, a) || localeSort(a, b));
+    return { quantile: selectedQuantile, threshold, eligible, all };
+  }
+
+  function calculateRigorousSet(role) {
+    const configuredQuantile = CONFIG?.dataSelection?.rigorousQuantile ?? 0.75;
+    return calculateRoleQuantileSet(role, configuredQuantile);
   }
 
   // ==========================================================================
@@ -269,6 +413,118 @@
     return {
       champion, opponent, orientation, winrate, generalWinrate, diff, games,
       matchupScore, decisionScore, reliability
+    };
+  }
+
+
+  function wilsonLowerBound(rate, games, confidence = DEFAULT_POOL_COUNTER_CONFIDENCE) {
+    const p = safeNumber(rate);
+    const n = safeNumber(games);
+    if (p === null || n === null || n <= 0) return null;
+    const z = WILSON_Z[confidence] ?? WILSON_Z[DEFAULT_POOL_COUNTER_CONFIDENCE];
+    const z2 = z * z;
+    const denominator = 1 + z2 / n;
+    const centre = p + z2 / (2 * n);
+    const margin = z * Math.sqrt((p * (1 - p) + z2 / (4 * n)) / n);
+    return clamp((centre - margin) / denominator, 0, 1);
+  }
+
+  function poolCounterMetricValue(row, metric) {
+    if (!row?.hasData) return null;
+    if (metric === 'decision') return safeNumber(row.decisionScore);
+    if (metric === 'winrate') return safeNumber(row.winrate);
+    if (metric === 'diff') return safeNumber(row.diff);
+    if (metric === 'games') return safeNumber(row.games);
+    return safeNumber(row.wilson);
+  }
+
+  function poolCounterMetricFormat(row, metric) {
+    const value = poolCounterMetricValue(row, metric);
+    if (metric === 'diff') return signedPct(value, 1);
+    if (metric === 'games') return integer(value);
+    return pct(value, 1);
+  }
+
+  function normalizePoolForRole(pool, role) {
+    const available = new Set(championsForRole(role));
+    return Array.from(new Set(Array.isArray(pool) ? pool : []))
+      .filter((champion) => available.has(champion));
+  }
+
+  // Funzione pubblica: riceve una pool nello stesso formato di state.selected.
+  // options: { role, scope: 'q50'|'all', metric, confidence, query }.
+  function buildPoolCounterMatrix(pool = state.selected, options = {}) {
+    const role = options.role || state.role;
+    const normalizedPool = normalizePoolForRole(pool, role);
+    const scope = options.scope === 'all' ? 'all' : 'q50';
+    const metric = POOL_COUNTER_METRICS[options.metric] ? options.metric : 'wilson';
+    const requestedConfidence = Number(options.confidence ?? DEFAULT_POOL_COUNTER_CONFIDENCE);
+    const confidence = Object.prototype.hasOwnProperty.call(WILSON_Z, requestedConfidence)
+      ? requestedConfidence
+      : DEFAULT_POOL_COUNTER_CONFIDENCE;
+    const query = String(options.query || '').trim().toLocaleLowerCase('it');
+    const q50 = calculateRoleQuantileSet(role, POOL_COUNTER_QUANTILE);
+    const targetSource = scope === 'all' ? q50.all : q50.eligible;
+    const targets = query
+      ? targetSource.filter((champion) => champion.toLocaleLowerCase('it').includes(query))
+      : targetSource;
+
+    const rows = targets.map((target) => {
+      const counters = normalizedPool
+        .filter((champion) => champion !== target)
+        .map((champion) => {
+          const matchup = getMatchup(role, champion, target);
+          if (!matchup) {
+            return {
+              champion,
+              target,
+              hasData: false,
+              winrate: null,
+              generalWinrate: safeNumber(profilesForRole(role)?.[champion]?.general_winrate),
+              diff: null,
+              games: null,
+              decisionScore: null,
+              wilson: null
+            };
+          }
+          return {
+            ...matchup,
+            target,
+            hasData: true,
+            wilson: wilsonLowerBound(matchup.winrate, matchup.games, confidence)
+          };
+        });
+
+      counters.sort((a, b) => {
+        const av = poolCounterMetricValue(a, metric);
+        const bv = poolCounterMetricValue(b, metric);
+        if (av === null && bv === null) return localeSort(a.champion, b.champion);
+        if (av === null) return 1;
+        if (bv === null) return -1;
+        return bv - av
+          || (safeNumber(b.decisionScore) ?? -1) - (safeNumber(a.decisionScore) ?? -1)
+          || (safeNumber(b.games) ?? -1) - (safeNumber(a.games) ?? -1)
+          || localeSort(a.champion, b.champion);
+      });
+
+      return {
+        target,
+        targetGames: profileGames(role, target),
+        inPool: normalizedPool.includes(target),
+        counters
+      };
+    });
+
+    return {
+      role,
+      pool: normalizedPool,
+      scope,
+      metric,
+      confidence,
+      q50Threshold: q50.threshold,
+      q50Count: q50.eligible.length,
+      allCount: q50.all.length,
+      rows
     };
   }
 
@@ -815,6 +1071,9 @@
     if (firstValidation) firstValidation.hidden = true;
     state.customChampion = null;
     byId('customChampion').value = '';
+    state.counterQuery = '';
+    const counterSearch = byId('counterSearchInput');
+    if (counterSearch) counterSearch.value = '';
     state.comboControllers.forEach((controller) => controller.setOptions(championOptions()));
     renderRoleChoices();
     renderThreshold();
@@ -871,7 +1130,7 @@
       activeIndex = Math.min(activeIndex, filtered.length - 1);
       list.innerHTML = filtered.length ? filtered.map((option, index) => `
         <button type="button" id="${inputId}-option-${index}" class="combo-option${option.low ? ' low' : ''}${index === activeIndex ? ' active' : ''}" role="option" tabindex="-1" aria-selected="${index === activeIndex ? 'true' : 'false'}" data-value="${esc(option.value)}">
-          <strong>${esc(option.label)}</strong><small>${esc(option.meta || '')}</small>
+          <strong>${champHtml(option.label, 'sm')}</strong><small>${esc(option.meta || '')}</small>
         </button>`).join('') : '<div class="combo-empty">Nessun campione trovato.</div>';
       setExpanded(document.activeElement === input);
       if (activeIndex >= 0 && filtered[activeIndex]) input.setAttribute('aria-activedescendant', `${inputId}-option-${activeIndex}`);
@@ -935,7 +1194,7 @@
       const profile = profilesForRole()?.[champion] || {};
       const damage = damageProfile(champion);
       const canRemove = state.selected.length > 1;
-      return `<div class="slot filled"><div class="slot-index">Pick ${index + 1}</div><div class="slot-name">${esc(champion)}</div><div class="slot-meta">WR ${pct(profile.general_winrate)} · ${esc(damageTypeLabel(damage.type))}</div>${canRemove ? `<button class="slot-remove" type="button" data-remove-index="${index}">Rimuovi</button>` : ''}</div>`;
+      return `<div class="slot filled"><div class="slot-index">Pick ${index + 1}</div><div class="slot-name">${champHtml(champion, 'md')}</div><div class="slot-meta">WR ${pct(profile.general_winrate)} · ${esc(damageTypeLabel(damage.type))}</div>${canRemove ? `<button class="slot-remove" type="button" data-remove-index="${index}">Rimuovi</button>` : ''}</div>`;
     }).join('');
 
     const scoreItems = [
@@ -967,7 +1226,7 @@
     byId('recoCount').textContent = `Scelta ${state.selected.length + 1} di ${state.size}`;
     byId('recommendations').innerHTML = top.length ? top.map((row, index) => {
       const reasons = recommendationReasons(row);
-      return `<article class="reco"><div class="reco-rank">${index + 1}</div><div><h3>${esc(row.candidate)}</h3><div class="reco-sub">WR ${pct(profilesForRole()?.[row.candidate]?.general_winrate)} · ${integer(profileGames(state.role, row.candidate))} partite</div></div><div class="reco-score ${toneForScore(row.score)}">${scoreFmt(row.score)}<div class="reco-sub">indice /100</div></div><div class="reco-reasons">${reasons.map((reason) => `<div class="reason ${reason.type}">${esc(reason.text)}</div>`).join('')}</div><button type="button" data-add-champion="${esc(row.candidate)}">Aggiungi</button></article>`;
+      return `<article class="reco"><div class="reco-rank">${index + 1}</div><div><h3>${champHtml(row.candidate, 'md')}</h3><div class="reco-sub">WR ${pct(profilesForRole()?.[row.candidate]?.general_winrate)} · ${integer(profileGames(state.role, row.candidate))} partite</div></div><div class="reco-score ${toneForScore(row.score)}">${scoreFmt(row.score)}<div class="reco-sub">indice /100</div></div><div class="reco-reasons">${reasons.map((reason) => `<div class="reason ${reason.type}">${esc(reason.text)}</div>`).join('')}</div><button type="button" data-add-champion="${esc(row.candidate)}">Aggiungi</button></article>`;
     }).join('') : '<div class="notice warn">Non ci sono altri campioni disponibili per questa lane.</div>';
     panel.hidden = false;
     customPanel.hidden = false;
@@ -1000,8 +1259,246 @@
     }
     const warning = row.belowRigorous ? ' Scelta personale sotto la soglia Rigorosa: valutazione meno affidabile.' : '';
     const damage = damageProfile(row.candidate);
-    preview.innerHTML = `<div class="preview-card"><div><h3>${esc(row.candidate)}</h3><p>Indice di aggiunta ${scoreFmt(row.score)}/100. Diventa la risposta migliore in ${row.improvedCount} matchup, ne risolve ${row.fixedCount} e aggiunge ${row.newCoverageCount} risposte prima mancanti.${esc(warning)} Profilo danno: ${esc(damageTypeLabel(damage.type))}.</p></div><div class="preview-score ${toneForScore(row.score)}">${scoreFmt(row.score)}</div></div>`;
+    preview.innerHTML = `<div class="preview-card"><div><h3>${champHtml(row.candidate, 'md')}</h3><p>Indice di aggiunta ${scoreFmt(row.score)}/100. Diventa la risposta migliore in ${row.improvedCount} matchup, ne risolve ${row.fixedCount} e aggiunge ${row.newCoverageCount} risposte prima mancanti.${esc(warning)} Profilo danno: ${esc(damageTypeLabel(damage.type))}.</p></div><div class="preview-score ${toneForScore(row.score)}">${scoreFmt(row.score)}</div></div>`;
     preview.hidden = false;
+  }
+
+
+
+  function setQuickValidation(message = '', kind = 'error') {
+    const element = byId('quickPoolValidation');
+    if (!element) return;
+    element.hidden = !message;
+    element.textContent = message;
+    element.className = `quick-validation ${kind}`;
+  }
+
+  function quickCounterCell(answer, rank, target) {
+    if (!answer) return '<td class="quick-counter-empty">—</td>';
+    if (!answer.hasData) {
+      return `<td><div class="quick-table-counter unavailable"><span>#${rank}</span><strong>${champHtml(answer.champion, 'xs')}</strong><em>N/D</em><small>Matchup assente</small></div></td>`;
+    }
+    const deepLink = `./visual.html?role=${encodeURIComponent(state.quickRole)}&a=${encodeURIComponent(answer.champion)}&b=${encodeURIComponent(target)}`;
+    return `<td><a class="quick-table-counter" href="${esc(deepLink)}" title="Apri ${esc(answer.champion)} contro ${esc(target)}"><span>#${rank}</span><strong>${champHtml(answer.champion, 'xs')}</strong><em>${esc(poolCounterMetricFormat(answer, state.quickMetric))}</em><small>WR ${pct(answer.winrate, 1)} · Δ ${signedPct(answer.diff, 1)} · ${integer(answer.games)} game</small></a></td>`;
+  }
+
+  function renderQuickCounterTable() {
+    const results = byId('quickCounterResults');
+    if (!results) return;
+    if (!state.quickRole || !state.quickPool.length) {
+      results.hidden = true;
+      state.quickMatrix = null;
+      return;
+    }
+
+    const matrix = buildPoolCounterMatrix(state.quickPool, {
+      role: state.quickRole,
+      scope: state.quickScope,
+      metric: state.quickMetric,
+      confidence: state.quickConfidence,
+      query: state.quickQuery
+    });
+    state.quickMatrix = matrix;
+    results.hidden = false;
+
+    const scopeSelect = byId('quickScopeSelect');
+    const metricSelect = byId('quickMetricSelect');
+    const confidenceSelect = byId('quickConfidenceSelect');
+    const confidenceField = byId('quickConfidenceField');
+    const searchInput = byId('quickSearchInput');
+    if (scopeSelect) {
+      scopeSelect.value = state.quickScope;
+      const q50Option = scopeSelect.querySelector('option[value="q50"]');
+      const allOption = scopeSelect.querySelector('option[value="all"]');
+      if (q50Option) q50Option.textContent = `Q50 · ${matrix.q50Count}`;
+      if (allOption) allOption.textContent = `Tutti · ${matrix.allCount}`;
+    }
+    if (metricSelect) metricSelect.value = state.quickMetric;
+    if (confidenceSelect) confidenceSelect.value = String(state.quickConfidence);
+    if (confidenceField) confidenceField.hidden = state.quickMetric !== 'wilson';
+    if (searchInput && searchInput.value !== state.quickQuery) searchInput.value = state.quickQuery;
+
+    const metric = POOL_COUNTER_METRICS[state.quickMetric] || POOL_COUNTER_METRICS.wilson;
+    const scopeText = state.quickScope === 'all'
+      ? `tutti i ${matrix.allCount} campioni del ruolo`
+      : `${matrix.q50Count} campioni Q50 con almeno ${integer(matrix.q50Threshold)} partite`;
+    byId('quickCounterSummary').innerHTML = `<strong>${esc(roleLabel(state.quickRole))}</strong> · Pool: <strong>${state.quickPool.map(esc).join(' / ')}</strong> · ${esc(scopeText)} · ordinamento: <strong>${esc(metric.label)}</strong>.`;
+    byId('quickCounterCount').textContent = `${matrix.rows.length} ${matrix.rows.length === 1 ? 'riga' : 'righe'}`;
+    const download = byId('quickDownloadBtn');
+    if (download) download.disabled = !matrix.rows.length;
+
+    const maxRanks = Math.max(1, state.quickPool.length);
+    const head = byId('quickCounterTableHead');
+    const body = byId('quickCounterTableBody');
+    head.innerHTML = `<tr><th scope="col">Campione della lane</th><th scope="col">Partite ruolo</th><th scope="col">Stato</th>${Array.from({ length: maxRanks }, (_, index) => `<th scope="col">#${index + 1} della pool</th>`).join('')}</tr>`;
+
+    if (!matrix.rows.length) {
+      body.innerHTML = `<tr><td class="quick-table-no-results" colspan="${3 + maxRanks}">Nessun campione corrisponde alla ricerca.</td></tr>`;
+      return;
+    }
+
+    body.innerHTML = matrix.rows.map((row) => {
+      const cells = Array.from({ length: maxRanks }, (_, index) => quickCounterCell(row.counters[index], index + 1, row.target)).join('');
+      return `<tr><th scope="row"><strong>${champHtml(row.target, 'xs')}</strong></th><td class="quick-number">${integer(row.targetGames)}</td><td>${row.inPool ? '<span class="quick-pool-badge">Nella pool</span>' : '<span class="quick-out-badge">Avversario</span>'}</td>${cells}</tr>`;
+    }).join('');
+  }
+
+  function generateQuickCounterTable() {
+    const parsed = parseQuickPoolText(byId('quickPoolInput')?.value);
+    if (parsed.error) {
+      state.quickRole = null;
+      state.quickPool = [];
+      state.quickMatrix = null;
+      renderQuickCounterTable();
+      setQuickValidation(parsed.error, 'error');
+      announce(parsed.error);
+      return;
+    }
+
+    state.quickRole = parsed.role;
+    state.quickPool = parsed.pool;
+    state.quickUnknownChampions = parsed.unknown;
+    state.quickQuery = '';
+    const search = byId('quickSearchInput');
+    if (search) search.value = '';
+    if (parsed.unknown.length) {
+      setQuickValidation(`Tabella generata. Campioni ignorati perché non trovati in ${roleLabel(parsed.role)}: ${parsed.unknown.join(', ')}.`, 'warning');
+    } else {
+      setQuickValidation(`Riconosciuti ${parsed.pool.length} campioni in ${roleLabel(parsed.role)}.`, 'success');
+    }
+    renderQuickCounterTable();
+    byId('quickCounterResults')?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+    announce(`Tabella counter generata per ${roleLabel(parsed.role)} con ${parsed.pool.length} campioni.`);
+  }
+
+  function csvCell(value) {
+    const text = String(value ?? '');
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+
+  function downloadQuickCounterCsv() {
+    const matrix = state.quickMatrix;
+    if (!matrix?.rows?.length) return;
+    const maxRanks = Math.max(1, state.quickPool.length);
+    const metric = POOL_COUNTER_METRICS[state.quickMetric] || POOL_COUNTER_METRICS.wilson;
+    const headers = ['Campione ruolo', 'Partite ruolo', 'Nella pool'];
+    for (let rank = 1; rank <= maxRanks; rank += 1) {
+      headers.push(`#${rank} counter`, `#${rank} ${metric.label}`, `#${rank} WR`, `#${rank} WR diff`, `#${rank} partite`);
+    }
+
+    const rows = matrix.rows.map((row) => {
+      const values = [row.target, Math.round(row.targetGames || 0), row.inPool ? 'Sì' : 'No'];
+      for (let index = 0; index < maxRanks; index += 1) {
+        const answer = row.counters[index];
+        if (!answer) {
+          values.push('', '', '', '', '');
+        } else if (!answer.hasData) {
+          values.push(answer.champion, 'N/D', 'N/D', 'N/D', 'N/D');
+        } else {
+          values.push(
+            answer.champion,
+            poolCounterMetricFormat(answer, state.quickMetric),
+            pct(answer.winrate, 2),
+            signedPct(answer.diff, 2),
+            Math.round(answer.games || 0)
+          );
+        }
+      }
+      return values;
+    });
+
+    const csv = '\uFEFF' + [headers, ...rows].map((row) => row.map(csvCell).join(';')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `pool-counter-${String(state.quickRole).toLocaleLowerCase('it')}-${state.quickScope}-${state.quickMetric}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    announce(`Tabella CSV scaricata con ${matrix.rows.length} righe.`);
+  }
+
+  function clearQuickCounter() {
+    const input = byId('quickPoolInput');
+    if (input) input.value = '';
+    state.quickRole = null;
+    state.quickPool = [];
+    state.quickQuery = '';
+    state.quickMatrix = null;
+    state.quickUnknownChampions = [];
+    setQuickValidation();
+    renderQuickCounterTable();
+    input?.focus();
+  }
+
+  function renderCounterCoverage() {
+    const panel = byId('counterCoveragePanel');
+    if (!panel) return;
+    if (!state.started || state.selected.length < 2) {
+      panel.hidden = true;
+      return;
+    }
+
+    const matrix = buildPoolCounterMatrix(state.selected, {
+      role: state.role,
+      scope: state.counterScope,
+      metric: state.counterMetric,
+      confidence: state.counterConfidence,
+      query: state.counterQuery
+    });
+    const metric = POOL_COUNTER_METRICS[state.counterMetric] || POOL_COUNTER_METRICS.wilson;
+    const scopeSelect = byId('counterScopeSelect');
+    const metricSelect = byId('counterMetricSelect');
+    const confidenceSelect = byId('counterConfidenceSelect');
+    const confidenceField = byId('counterConfidenceField');
+    const searchInput = byId('counterSearchInput');
+
+    if (scopeSelect) {
+      scopeSelect.value = state.counterScope;
+      const q50Option = scopeSelect.querySelector('option[value="q50"]');
+      const allOption = scopeSelect.querySelector('option[value="all"]');
+      if (q50Option) q50Option.textContent = `Q50 · ${matrix.q50Count} campioni`;
+      if (allOption) allOption.textContent = `Tutti · ${matrix.allCount} campioni`;
+    }
+    if (metricSelect) metricSelect.value = state.counterMetric;
+    if (confidenceSelect) confidenceSelect.value = String(state.counterConfidence);
+    if (confidenceField) confidenceField.hidden = state.counterMetric !== 'wilson';
+    if (searchInput && searchInput.value !== state.counterQuery) searchInput.value = state.counterQuery;
+
+    const scopeText = state.counterScope === 'all'
+      ? `tutti i ${matrix.allCount} campioni disponibili nel ruolo`
+      : `i ${matrix.q50Count} campioni Q50 con almeno ${integer(matrix.q50Threshold)} partite nel ruolo`;
+    byId('counterCoverageSummary').innerHTML = `<strong>${esc(roleLabel(state.role))}:</strong> analizzo ${esc(scopeText)}. Per ogni avversario ordino i campioni della pool con <strong>${esc(metric.label)}</strong>. Il campione della riga, quando è già nella pool, non può counterare sé stesso.`;
+    byId('counterMetricNote').textContent = state.counterMetric === 'wilson'
+      ? `${metric.description} Livello di prudenza selezionato: ${state.counterConfidence}%.`
+      : metric.description;
+    byId('counterResultCount').textContent = `${matrix.rows.length} ${matrix.rows.length === 1 ? 'campione' : 'campioni'}`;
+
+    const list = byId('counterCoverageRows');
+    if (!matrix.rows.length) {
+      list.innerHTML = '<div class="counter-empty">Nessun campione corrisponde al filtro di ricerca.</div>';
+      panel.hidden = false;
+      return;
+    }
+
+    list.innerHTML = matrix.rows.map((row) => {
+      const answers = row.counters.length ? row.counters.map((answer, index) => {
+        const rank = index + 1;
+        if (!answer.hasData) {
+          return `<div class="pool-counter-answer unavailable"><span class="counter-answer-rank">#${rank}</span><strong>${champHtml(answer.champion, 'xs')}</strong><span class="counter-answer-primary">N/D</span><small>Matchup non presente nel dataset</small></div>`;
+        }
+        const deepLink = `./visual.html?role=${encodeURIComponent(state.role)}&a=${encodeURIComponent(answer.champion)}&b=${encodeURIComponent(row.target)}`;
+        const metricValue = poolCounterMetricFormat(answer, state.counterMetric);
+        const meta = `WR ${pct(answer.winrate, 1)} · Δ ${signedPct(answer.diff, 1)} · ${integer(answer.games)} partite`;
+        return `<a class="pool-counter-answer" href="${esc(deepLink)}" title="Apri ${esc(answer.champion)} contro ${esc(row.target)} nel Matchup Lab"><span class="counter-answer-rank">#${rank}</span><strong>${champHtml(answer.champion, 'xs')}</strong><span class="counter-answer-primary">${esc(metricValue)}</span><small>${esc(meta)}</small></a>`;
+      }).join('') : '<div class="counter-no-answer">Nessun altro campione della pool può essere confrontato con questa riga.</div>';
+
+      const poolBadge = row.inPool ? '<span class="counter-badge in-pool">Nella pool</span>' : '';
+      return `<article class="pool-counter-target"><div class="counter-target-head"><div><h3>${champHtml(row.target, 'sm')}</h3><p>${integer(row.targetGames)} partite nel ruolo</p></div>${poolBadge}</div><div class="counter-answer-list">${answers}</div></article>`;
+    }).join('');
+    panel.hidden = false;
   }
 
   function renderFinal() {
@@ -1032,10 +1529,15 @@
   function renderWorkspace() {
     byId('emptyState').hidden = state.started;
     byId('poolPanel').hidden = !state.started;
-    if (!state.started) return;
+    if (!state.started) {
+      const counterPanel = byId('counterCoveragePanel');
+      if (counterPanel) counterPanel.hidden = true;
+      return;
+    }
     renderPool();
     renderRecommendations();
     renderFinal();
+    renderCounterCoverage();
   }
 
   function addChampion(champion) {
@@ -1156,12 +1658,45 @@
       getState: () => ({ ...state, selected: state.selected.slice(), opponents: state.opponents.slice() }),
       getMatchup: (role, champion, opponent) => getMatchup(role, champion, opponent),
       evaluateCurrentPool: () => evaluatePool(state.selected),
+      buildCounterMatrix: (pool = state.selected, options = {}) => buildPoolCounterMatrix(pool, options),
+      parseQuickPool: (text) => parseQuickPoolText(text),
       recommendationRows: () => state.recommendationRows.map((row) => ({ ...row })),
       validateConfig: () => validateConfiguration().slice()
     };
   }
 
   function bindEvents() {
+    byId('quickAnalyzeBtn').addEventListener('click', generateQuickCounterTable);
+    byId('quickExampleBtn').addEventListener('click', () => {
+      byId('quickPoolInput').value = 'TOP — Singed / Irelia / Nasus';
+      generateQuickCounterTable();
+    });
+    byId('quickClearBtn').addEventListener('click', clearQuickCounter);
+    byId('quickDownloadBtn').addEventListener('click', downloadQuickCounterCsv);
+    byId('quickPoolInput').addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+        event.preventDefault();
+        generateQuickCounterTable();
+      }
+    });
+    byId('quickScopeSelect').addEventListener('change', (event) => {
+      state.quickScope = event.target.value === 'all' ? 'all' : 'q50';
+      renderQuickCounterTable();
+    });
+    byId('quickMetricSelect').addEventListener('change', (event) => {
+      state.quickMetric = POOL_COUNTER_METRICS[event.target.value] ? event.target.value : 'wilson';
+      renderQuickCounterTable();
+    });
+    byId('quickConfidenceSelect').addEventListener('change', (event) => {
+      const confidence = Number(event.target.value);
+      state.quickConfidence = Object.prototype.hasOwnProperty.call(WILSON_Z, confidence) ? confidence : DEFAULT_POOL_COUNTER_CONFIDENCE;
+      renderQuickCounterTable();
+    });
+    byId('quickSearchInput').addEventListener('input', (event) => {
+      state.quickQuery = event.target.value;
+      renderQuickCounterTable();
+    });
+
     byId('roleGrid').addEventListener('click', (event) => {
       const button = event.target.closest('[data-role]');
       if (!button) return;
@@ -1187,6 +1722,26 @@
     });
     byId('undoBtn').addEventListener('click', () => removeAt(state.selected.length - 1));
     byId('resetBtn').addEventListener('click', resetBuilder);
+    byId('counterScopeSelect').addEventListener('change', (event) => {
+      state.counterScope = event.target.value === 'all' ? 'all' : 'q50';
+      renderCounterCoverage();
+      announce(`Copertura counter aggiornata: ${state.counterScope === 'all' ? 'tutti i campioni' : 'campioni Q50'}.`);
+    });
+    byId('counterMetricSelect').addEventListener('change', (event) => {
+      state.counterMetric = POOL_COUNTER_METRICS[event.target.value] ? event.target.value : 'wilson';
+      renderCounterCoverage();
+      announce(`Ordinamento counter aggiornato: ${POOL_COUNTER_METRICS[state.counterMetric].label}.`);
+    });
+    byId('counterConfidenceSelect').addEventListener('change', (event) => {
+      const confidence = Number(event.target.value);
+      state.counterConfidence = Object.prototype.hasOwnProperty.call(WILSON_Z, confidence) ? confidence : DEFAULT_POOL_COUNTER_CONFIDENCE;
+      renderCounterCoverage();
+      announce(`Prudenza Wilson impostata al ${state.counterConfidence}%.`);
+    });
+    byId('counterSearchInput').addEventListener('input', (event) => {
+      state.counterQuery = event.target.value;
+      renderCounterCoverage();
+    });
     $$('[data-clear]').forEach((button) => {
       button.addEventListener('click', () => {
         const input = byId(button.dataset.clear);

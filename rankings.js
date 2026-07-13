@@ -193,6 +193,13 @@
       .replaceAll("'", '&#039;');
   }
 
+  function champHtml(name, size = 'sm', className = '') {
+    if (!name) return '—';
+    return window.ChampionIcons?.html
+      ? window.ChampionIcons.html(name, { size, className })
+      : esc(name);
+  }
+
   function pct(value, digits = 1) {
     const n = safeNumber(value);
     return n === null ? '—' : `${(n * 100).toLocaleString('it-IT', { minimumFractionDigits: digits, maximumFractionDigits: digits })}%`;
@@ -745,7 +752,7 @@
 
     list.innerHTML = champions.length ? champions.map((name) => {
       const games = safeNumber(profiles?.[name]?.coverage?.total_games);
-      return `<button class="counter-option" type="button" role="option" data-champion="${esc(name)}"><span>${esc(name)}</span><em>${integer(games)} partite</em></button>`;
+      return `<button class="counter-option" type="button" role="option" data-champion="${esc(name)}">${champHtml(name, 'sm')}<em>${integer(games)} partite</em></button>`;
     }).join('') : '<div class="counter-option-empty">Nessun campione trovato.</div>';
   }
 
@@ -809,7 +816,7 @@
       : `${integer(row.games)} partite · ${signedPct(row.diff, 1)} vs WR abituale`;
     return `<article class="podium-card position-${position}${low ? ' low-sample' : ''}">
       <div class="podium-rank">${position}</div>
-      <div class="podium-copy"><span>${esc(row.champion)}</span><strong>${metric.format(value)}</strong><em>${esc(detail)}</em></div>
+      <div class="podium-copy"><span>${champHtml(row.champion, 'md')}</span><strong>${metric.format(value)}</strong><em>${esc(detail)}</em></div>
       ${low ? '<span class="sample-badge low">Sotto soglia</span>' : '<span class="sample-badge high">Affidabile</span>'}
     </article>`;
   }
@@ -835,7 +842,7 @@
       const deepLink = `./visual.html?role=${encodeURIComponent(state.role)}&a=${encodeURIComponent(row.champion)}`;
       return `<tr class="ranking-row${low ? ' low-sample' : ''}">
         <td class="rank-cell"><span>${integer(row.absoluteRank)}</span></td>
-        <td class="champion-cell"><strong>${esc(row.champion)}</strong><em>${pct(row.generalWinrate, 1)} WR generale</em></td>
+        <td class="champion-cell"><strong>${champHtml(row.champion, 'sm')}</strong><em>${pct(row.generalWinrate, 1)} WR generale</em></td>
         <td class="metric-cell">
           <div class="metric-line"><strong>${metric.format(row.value)}</strong>${row.percentile !== null ? `<span>p${integer(row.percentile)}</span>` : ''}</div>
           <div class="metric-track" aria-hidden="true"><i style="width:${width.toFixed(1)}%"></i></div>
@@ -867,7 +874,7 @@
       const deepLink = `./visual.html?role=${encodeURIComponent(state.role)}&a=${encodeURIComponent(row.champion)}&b=${encodeURIComponent(state.counterChampion)}`;
       return `<tr class="ranking-row${low ? ' low-sample' : ''}">
         <td class="rank-cell"><span>${integer(row.absoluteRank)}</span></td>
-        <td class="champion-cell"><strong>${esc(row.champion)}</strong><em>contro ${esc(state.counterChampion)}</em></td>
+        <td class="champion-cell"><strong>${champHtml(row.champion, 'sm')}</strong><em>contro ${esc(state.counterChampion)}</em></td>
         <td class="metric-cell">
           <div class="metric-line"><strong>${pct(row.winrate, 1)}</strong><span>${row.targetWinrate === null ? '' : `${pct(row.targetWinrate, 1)} al bersaglio`}</span></div>
           <div class="metric-track" aria-hidden="true"><i style="width:${width.toFixed(1)}%"></i></div>
