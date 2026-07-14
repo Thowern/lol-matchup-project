@@ -8,7 +8,7 @@
  * intuitivi come 50 / 20 / 15 / 10 / 5.
  */
 window.POOL_BUILDER_CONFIG = {
-  version: '2.0.0',
+  version: '2.2.0',
 
   /* 1. QUALI CAMPIONI ENTRANO NELLE ANALISI ---------------------- */
   dataSelection: {
@@ -222,7 +222,75 @@ window.POOL_BUILDER_CONFIG = {
     ]
   },
 
-  /* 9. INTERFACCIA ------------------------------------------------ */
+  /* 9. CONSIGLIO BAN --------------------------------------------- */
+  banRecommendation: {
+    // Numero massimo di suggerimenti mostrati inizialmente.
+    limit: 10,
+
+    // Il rischio matchup resta la componente dominante. Popolarità e
+    // snowball servono soprattutto a separare minacce con rischio simile.
+    weights: {
+      matchupThreat: 30,
+      popularity: 50,
+      snowball: 10
+    },
+
+    // Il rischio primario combina WR diretto dell'avversario e rendimento
+    // relativo al suo WR generale nello specifico matchup.
+    matchupWeights: {
+      directWinrate: 50,
+      relativeToGeneral: 50
+    },
+
+    // Con una pool completa conta soprattutto se esiste almeno una risposta
+    // sicura. Media e matchup peggiore mantengono però visibile la pressione
+    // esercitata sul resto della pool.
+    poolThreatWeights: {
+      noSafeAnswer: 40,
+      averagePressure: 20,
+      worstExposure: 40
+    },
+
+    // Riduce verso il 50% i matchup diretti con poche partite.
+    shrinkageGames: 40,
+
+    // Trasforma il rischio aggregato in una scala 0-100: 50% è neutro,
+    // 60% o più equivale a minaccia matchup piena.
+    neutralThreat: 0.50,
+    fullThreatAt: 0.60,
+
+    // Popolarità reale del possibile ban nel ruolo. Il percentile evita che
+    // pochi campioni enormemente popolari schiaccino tutti gli altri; la parte
+    // logaritmica conserva la distanza tra campioni molto e poco giocati.
+    popularityWeights: {
+      percentile: 50,
+      logarithmic: 50
+    },
+
+    // 25 punti percentuali di sensibilità avanti/indietro valgono 100 nella
+    // componente snowball. Il valore peggiore pesa meno della media orientata
+    // ai matchup in cui l'avversario è già pericoloso.
+    fullSnowballAt: 0.25,
+    snowballWeights: {
+      pressureWeightedAverage: 70,
+      worstCase: 30
+    },
+
+    // Una pool è "Coperta" contro il possibile ban se almeno uno dei suoi
+    // campioni mantiene la minaccia corretta dell'avversario al 55% o meno.
+    // Riducilo per richiedere una risposta più chiaramente favorevole.
+    safeAnswerThreatMax: 0.55,
+
+    // Esclude completamente un possibile ban quando il matchup con la maggiore
+    // sensibilità allo snowball resta comunque favorevole alla pool su entrambi
+    // i segnali: WR diretto dell'avversario <= 50% e WR diff <= 0.
+    // Se uno dei due dati manca, il candidato non viene escluso.
+    excludeIfMostSensitiveFavorsPool: true,
+    favorableSensitiveMaxWinrate: 0.50,
+    favorableSensitiveMaxDiff: 0
+  },
+
+  /* 10. INTERFACCIA ----------------------------------------------- */
   ui: {
     smoothScroll: true
   }

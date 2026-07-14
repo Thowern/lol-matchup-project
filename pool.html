@@ -1952,6 +1952,52 @@ a.quick-table-counter:hover strong { color:var(--info); }
 .quick-counter-empty { color:var(--ink-muted); text-align:center!important; }
 .quick-table-no-results { padding:28px!important; color:var(--ink-faint); text-align:center!important; }
 
+
+.ban-recommendation-panel {
+  border-color:var(--danger-line);
+  background:
+    radial-gradient(600px 230px at 0 0,var(--danger-soft),transparent 74%),
+    radial-gradient(480px 210px at 100% 0,var(--warning-soft),transparent 76%),
+    linear-gradient(150deg,var(--surface-2),var(--surface-1));
+}
+.ban-recommendation-head { display:flex; align-items:flex-start; justify-content:space-between; gap:var(--space-4); }
+.ban-recommendation-head h2 { margin:0; font-size:clamp(22px,2.4vw,30px); letter-spacing:-.045em; }
+.ban-recommendation-head p { max-width:76ch; margin:7px 0 0; color:var(--ink-dim); font-size:13px; line-height:1.62; }
+.counter-toolbar.ban-toolbar { grid-template-columns:minmax(180px,.7fr) minmax(150px,.45fr) minmax(0,1.85fr); }
+.ban-priority-note { display:flex; align-items:center; min-height:44px; padding:10px 12px; border:1px solid var(--line-soft); border-radius:var(--radius-sm); color:var(--ink-faint); background:oklch(0% 0 0/.12); font-size:10px; line-height:1.45; }
+.ban-priority-note strong { color:var(--ink-soft); }
+.ban-recommendation-rows { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:var(--space-4); }
+.ban-card { position:relative; display:grid; gap:12px; min-width:0; padding:17px; border:1px solid var(--line); border-radius:var(--radius-lg); background:linear-gradient(145deg,oklch(0% 0 0/.11),var(--surface-1)); box-shadow:0 14px 35px oklch(0% 0 0/.14); }
+.ban-card::before { content:""; position:absolute; inset:0 auto 0 0; width:3px; border-radius:inherit; background:var(--line-strong); }
+.ban-card.danger { border-color:var(--danger-line); }
+.ban-card.danger::before { background:var(--danger); box-shadow:0 0 20px var(--danger-glow); }
+.ban-card.warning { border-color:var(--warning-line); }
+.ban-card.warning::before { background:var(--warning); box-shadow:0 0 18px var(--warning-glow); }
+.ban-card.info { border-color:var(--info-line); }
+.ban-card.info::before { background:var(--info); }
+.ban-rank { position:absolute; top:13px; right:13px; color:var(--ink-muted); font-family:var(--font-mono); font-size:9px; font-weight:900; }
+.ban-card-main { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding-right:30px; }
+.ban-card-main h3 { margin:0; color:var(--ink); font-size:17px; letter-spacing:-.03em; }
+.ban-card-main p { margin:7px 0 0; color:var(--ink-faint); font-family:var(--font-mono); font-size:8px; line-height:1.45; text-transform:uppercase; }
+.ban-score { flex:0 0 auto; display:grid; justify-items:end; }
+.ban-score strong { color:var(--danger); font-family:var(--font-mono); font-size:28px; line-height:1; }
+.ban-card.warning .ban-score strong { color:var(--warning); }
+.ban-card.info .ban-score strong { color:var(--info); }
+.ban-card.neutral .ban-score strong { color:var(--ink-soft); }
+.ban-score span { margin-top:5px; color:var(--ink-muted); font-family:var(--font-mono); font-size:7px; letter-spacing:.06em; text-transform:uppercase; }
+.ban-label { width:max-content; max-width:100%; padding:5px 8px; border:1px solid var(--line); border-radius:var(--radius-pill); color:var(--ink-soft); background:oklch(0% 0 0/.12); font-family:var(--font-mono); font-size:7.5px; font-weight:900; letter-spacing:.05em; text-transform:uppercase; }
+.ban-card .ban-label.covered { color:var(--success); border-color:var(--success-line); background:var(--success-soft); }
+.ban-card .ban-label.uncovered { color:var(--danger); border-color:var(--danger-line); background:var(--danger-soft); }
+.ban-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.ban-metrics > div { min-width:0; padding:10px; border:1px solid var(--line-soft); border-radius:var(--radius-sm); background:oklch(0% 0 0/.12); }
+.ban-metrics span { display:block; color:var(--ink-faint); font-size:8px; font-weight:800; letter-spacing:.055em; text-transform:uppercase; }
+.ban-metrics strong { display:block; margin-top:7px; color:var(--ink); font-family:var(--font-mono); font-size:19px; }
+.ban-metrics small { display:block; margin-top:6px; color:var(--ink-faint); font-size:8px; line-height:1.45; overflow-wrap:anywhere; }
+.ban-detail { display:grid; gap:5px; color:var(--ink-dim); font-size:9.5px; line-height:1.45; }
+.ban-detail span::before { content:"◆"; margin-right:7px; color:var(--ink-muted); font-size:7px; }
+.ban-matchup-link { width:max-content; max-width:100%; color:var(--info); font-family:var(--font-mono); font-size:8px; font-weight:850; letter-spacing:.045em; text-decoration:none; text-transform:uppercase; }
+.ban-matchup-link:hover { text-decoration:underline; }
+
 .counter-coverage-panel {
   border-color:var(--info-line);
   background:
@@ -2063,6 +2109,7 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
 
 @media (max-width: 1180px) {
   .pool-builder-grid { grid-template-columns:1fr; }
+  .ban-recommendation-rows { grid-template-columns:1fr; }
   .pool-setup-card { position:relative; top:auto; }
   .role-grid { grid-template-columns:repeat(5,minmax(0,1fr)); }
   .reco { grid-template-columns:42px minmax(150px,.65fr) 70px minmax(240px,1.25fr); }
@@ -2074,6 +2121,8 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
   .quick-format-example { min-width:0; width:100%; }
   .quick-input-grid { grid-template-columns:1fr; }
   .counter-toolbar { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .ban-toolbar { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .ban-priority-note { grid-column:1 / -1; }
   .pool-counter-target { grid-template-columns:1fr; }
   .pool-hero .hero-card::after { display:none; }
   .pool-hero .hero-side { grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:stretch; }
@@ -2093,6 +2142,12 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
 }
 @media (max-width: 620px) {
   #poolBuilderApp { padding-bottom:var(--space-9); }
+  .ban-recommendation-head { display:grid; }
+  .ban-toolbar { grid-template-columns:1fr; }
+  .ban-priority-note { grid-column:auto; }
+  .ban-card-main { display:grid; }
+  .ban-score { justify-items:start; }
+  .ban-metrics { grid-template-columns:1fr; }
   .quick-counter-lab { padding:18px; border-radius:22px; }
   .quick-results-head { grid-template-columns:1fr; }
   .quick-result-actions { justify-content:stretch; flex-wrap:wrap; }
@@ -2297,6 +2352,7 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
         <div id="currentScores" class="score-grid"></div>
       </section>
 
+
       <section id="recommendationPanel" class="pool-work-card" hidden>
         <div class="reco-head">
           <div><div class="micro-label pool-card-kicker">Valore marginale</div><h2>Prossimi campioni consigliati</h2><p>Ordinati in base a quanto migliorano la pool attuale, non soltanto per forza individuale.</p></div>
@@ -2317,6 +2373,26 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
           <button id="addCustomBtn" class="secondary" type="button" disabled>Aggiungi</button>
         </div>
         <div id="customPreview" class="preview" hidden></div>
+      </section>
+
+      <section id="banRecommendationPanel" class="pool-work-card ban-recommendation-panel" hidden>
+        <div class="ban-recommendation-head">
+          <div>
+            <div class="micro-label pool-card-kicker">Draft protection</div>
+            <h2>Ban consigliati</h2>
+            <p>Individua gli avversari più pericolosi per il campione o la pool corrente. Se il matchup più sensibile allo snowball resta favorevole alla pool sia per WR sia per WR diff, il candidato viene escluso.</p>
+          </div>
+          <div id="banResultCount" class="reco-count">—</div>
+        </div>
+
+        <div class="counter-toolbar ban-toolbar" aria-label="Opzioni consiglio ban">
+          <label class="counter-control"><span>Campioni candidati</span><select id="banScopeSelect"><option value="q50">Q50</option><option value="all">Tutti</option></select></label>
+          <label class="counter-control"><span>Risultati mostrati</span><select id="banLimitSelect"><option value="5">Top 5</option><option value="10" selected>Top 10</option><option value="15">Top 15</option><option value="20">Top 20</option></select></label>
+          <div class="ban-priority-note"><span><strong>Ordinamento:</strong> indice ban finale dal più alto al più basso. WR/WR diff, partite totali e snowball contribuiscono al punteggio secondo i pesi configurati.</span></div>
+        </div>
+
+        <div id="banRecommendationSummary" class="counter-summary"></div>
+        <div id="banRecommendationRows" class="ban-recommendation-rows"></div>
       </section>
 
       <section id="finalPanel" class="pool-work-card final-panel" hidden><div id="finalContent"></div></section>

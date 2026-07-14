@@ -28,6 +28,8 @@
   const RECOMMENDATION_LIMIT = CONFIG?.recommendation?.limit ?? 7;
   const MATCHUP_NEUTRAL = CONFIG?.matchup?.neutralWinrate ?? 0.50;
   const POOL_COUNTER_QUANTILE = 0.50;
+  const BAN_RECOMMENDATION_QUANTILE = 0.50;
+  const BAN_RECOMMENDATION_LIMIT = Math.max(1, Math.round(safeNumber(CONFIG?.banRecommendation?.limit) ?? 10));
   const DEFAULT_POOL_COUNTER_CONFIDENCE = 99;
   const WILSON_Z = {
     90: 1.6448536269514722,
@@ -73,6 +75,9 @@
     counterMetric: 'wilson',
     counterConfidence: DEFAULT_POOL_COUNTER_CONFIDENCE,
     counterQuery: '',
+    banScope: 'q50',
+    banLimit: BAN_RECOMMENDATION_LIMIT,
+    banRows: [],
     quickRole: null,
     quickPool: [],
     quickScope: 'q50',
@@ -371,6 +376,20 @@
     return output;
   }
 
+  function snowballSensitivityFromRaw(raw) {
+    if (!raw) return { value: null, source: null };
+    const conversion = safeNumber(raw.snowball_conversion_15m_a);
+    if (conversion !== null) return { value: Math.abs(conversion), source: 'conversion' };
+
+    const ahead = safeNumber(raw.winrate_a_when_ahead_15m);
+    const behind = safeNumber(raw.winrate_a_when_behind_15m);
+    if (ahead !== null && behind !== null) return { value: Math.abs(ahead - behind), source: 'winrate-swing' };
+
+    const corr = safeNumber(raw.snowball_corr_15m);
+    if (corr !== null) return { value: Math.min(0.35, Math.abs(corr) * 0.30), source: 'correlation-fallback' };
+    return { value: null, source: null };
+  }
+
   function getMatchup(role, champion, opponent) {
     if (!role || !champion || !opponent || champion === opponent) return null;
     const roleMap = DATA?.matchups?.[role] || {};
@@ -409,10 +428,13 @@
     const shrinkageGames = Math.max(0, safeNumber(CONFIG?.matchup?.shrinkageGames) ?? 20);
     const reliability = shrinkageGames === 0 ? 1 : games / (games + shrinkageGames);
     const decisionScore = MATCHUP_NEUTRAL + (matchupScore - MATCHUP_NEUTRAL) * reliability;
+    const snowball = snowballSensitivityFromRaw(raw);
 
     return {
       champion, opponent, orientation, winrate, generalWinrate, diff, games,
-      matchupScore, decisionScore, reliability
+      matchupScore, decisionScore, reliability,
+      snowballSensitivity: snowball.value,
+      snowballSource: snowball.source
     };
   }
 
@@ -525,6 +547,214 @@
       q50Count: q50.eligible.length,
       allCount: q50.all.length,
       rows
+    };
+  }
+
+
+  function percentileRank(value, values) {
+    const number = safeNumber(value);
+    const sorted = values.map(safeNumber).filter((item) => item !== null).sort((a, b) => a - b);
+    if (number === null || !sorted.length) return 0;
+    if (sorted.length === 1) return 100;
+    let below = 0;
+    let equal = 0;
+    sorted.forEach((item) => {
+      if (item < number) below += 1;
+      else if (item === number) equal += 1;
+    });
+    return clamp(((below + Math.max(0, equal - 1) / 2) / (sorted.length - 1)) * 100, 0, 100);
+  }
+
+  function banMatchupThreat(matchup) {
+    if (!matchup) return null;
+    const relativePerformance = matchup.diff === null
+      ? MATCHUP_NEUTRAL
+      : clamp(MATCHUP_NEUTRAL + matchup.diff, 0, 1);
+    const rawThreat = weightedScore(
+      { directWinrate: matchup.winrate, relativeToGeneral: relativePerformance },
+      CONFIG?.banRecommendation?.matchupWeights || { directWinrate: 65, relativeToGeneral: 35 }
+    );
+    const shrinkageGames = Math.max(0, safeNumber(CONFIG?.banRecommendation?.shrinkageGames) ?? 40);
+    const reliability = shrinkageGames === 0 ? 1 : matchup.games / (matchup.games + shrinkageGames);
+    return MATCHUP_NEUTRAL + (rawThreat - MATCHUP_NEUTRAL) * reliability;
+  }
+
+  function buildBanRecommendations(pool = state.selected, options = {}) {
+    const role = options.role || state.role;
+    const normalizedPool = normalizePoolForRole(pool, role);
+    const scope = options.scope === 'all' ? 'all' : 'q50';
+    const requestedLimit = Math.round(safeNumber(options.limit) ?? BAN_RECOMMENDATION_LIMIT);
+    const limit = Math.max(1, Math.min(30, requestedLimit));
+    if (!role || !normalizedPool.length) {
+      return { role, pool: normalizedPool, scope, limit, q50Threshold: 0, q50Count: 0, allCount: 0, rows: [] };
+    }
+
+    const q50 = calculateRoleQuantileSet(role, BAN_RECOMMENDATION_QUANTILE);
+    const source = scope === 'all' ? q50.all : q50.eligible;
+    const candidates = source.filter((candidate) => !normalizedPool.includes(candidate));
+    const allPopularityValues = q50.all.map((candidate) => profileGames(role, candidate));
+    const maxGames = Math.max(1, ...allPopularityValues);
+    const banConfig = CONFIG?.banRecommendation || {};
+    const neutralThreat = safeNumber(banConfig.neutralThreat) ?? 0.50;
+    const fullThreatAt = Math.max(neutralThreat + 0.001, safeNumber(banConfig.fullThreatAt) ?? 0.60);
+    const fullSnowballAt = Math.max(0.01, safeNumber(banConfig.fullSnowballAt) ?? 0.25);
+    const safeAnswerThreatMax = clamp(safeNumber(banConfig.safeAnswerThreatMax) ?? 0.55, 0, 1);
+    const excludeIfMostSensitiveFavorsPool = banConfig.excludeIfMostSensitiveFavorsPool !== false;
+    const favorableSensitiveMaxWinrate = clamp(safeNumber(banConfig.favorableSensitiveMaxWinrate) ?? 0.50, 0, 1);
+    const favorableSensitiveMaxDiff = safeNumber(banConfig.favorableSensitiveMaxDiff) ?? 0;
+    let excludedFavorableSensitiveCount = 0;
+
+    const rows = candidates.map((candidate) => {
+      const matchupRows = normalizedPool.map((playerChampion) => {
+        const matchup = getMatchup(role, candidate, playerChampion);
+        if (!matchup) {
+          return {
+            candidate,
+            playerChampion,
+            hasData: false,
+            threat: MATCHUP_NEUTRAL,
+            winrate: null,
+            diff: null,
+            games: null,
+            reliability: 0,
+            snowballSensitivity: null
+          };
+        }
+        return {
+          ...matchup,
+          candidate,
+          playerChampion,
+          hasData: true,
+          threat: banMatchupThreat(matchup)
+        };
+      });
+
+      const knownRows = matchupRows.filter((row) => row.hasData && safeNumber(row.threat) !== null);
+      if (!knownRows.length) return null;
+
+      // Il matchup più sensibile è quello con la maggiore variazione di WR tra
+      // vantaggio e svantaggio al minuto 15. Se persino quel confronto resta
+      // favorevole alla pool sia per WR diretto sia per WR diff, il campione non
+      // è una priorità di ban e viene escluso prima di applicare popolarità e score.
+      const mostSensitiveMatchup = knownRows
+        .filter((row) => safeNumber(row.snowballSensitivity) !== null)
+        .slice()
+        .sort((a, b) => b.snowballSensitivity - a.snowballSensitivity
+          || b.games - a.games
+          || b.threat - a.threat
+          || localeSort(a.playerChampion, b.playerChampion))[0] || null;
+      const mostSensitiveFavorsPool = Boolean(
+        mostSensitiveMatchup
+        && safeNumber(mostSensitiveMatchup.winrate) !== null
+        && safeNumber(mostSensitiveMatchup.diff) !== null
+        && mostSensitiveMatchup.winrate <= favorableSensitiveMaxWinrate
+        && mostSensitiveMatchup.diff <= favorableSensitiveMaxDiff
+      );
+      if (excludeIfMostSensitiveFavorsPool && mostSensitiveFavorsPool) {
+        excludedFavorableSensitiveCount += 1;
+        return null;
+      }
+
+      // I matchup mancanti entrano come neutrali. In questo modo un singolo
+      // hard counter noto non viene scambiato per una minaccia all'intera pool.
+      const threatValues = matchupRows.map((row) => safeNumber(row.threat) ?? MATCHUP_NEUTRAL);
+      const noSafeAnswer = Math.min(...threatValues);
+      const averagePressure = threatValues.reduce((sum, value) => sum + value, 0) / threatValues.length;
+      const worstExposure = Math.max(...threatValues);
+      const aggregateThreat = weightedScore(
+        { noSafeAnswer, averagePressure, worstExposure },
+        banConfig.poolThreatWeights || { noSafeAnswer: 55, averagePressure: 30, worstExposure: 15 }
+      );
+      const matchupThreat = clamp((aggregateThreat - neutralThreat) / (fullThreatAt - neutralThreat) * 100, 0, 100);
+
+      const candidateGames = profileGames(role, candidate);
+      const popularityPercentile = percentileRank(candidateGames, allPopularityValues);
+      const popularityLogarithmic = clamp(Math.log1p(candidateGames) / Math.log1p(maxGames) * 100, 0, 100);
+      const popularity = weightedScore(
+        { percentile: popularityPercentile, logarithmic: popularityLogarithmic },
+        banConfig.popularityWeights || { percentile: 65, logarithmic: 35 }
+      );
+
+      const snowballRows = knownRows.filter((row) => safeNumber(row.snowballSensitivity) !== null);
+      const pressureWeightedAverage = weightedAverage(
+        snowballRows,
+        (row) => row.snowballSensitivity,
+        (row) => 1 + clamp((row.threat - MATCHUP_NEUTRAL) / 0.10, 0, 1) * 2
+      );
+      const worstSnowball = snowballRows.length
+        ? Math.max(...snowballRows.map((row) => row.snowballSensitivity))
+        : null;
+      const aggregateSnowball = pressureWeightedAverage === null && worstSnowball === null
+        ? null
+        : weightedScore(
+          { pressureWeightedAverage, worstCase: worstSnowball },
+          banConfig.snowballWeights || { pressureWeightedAverage: 70, worstCase: 30 }
+        );
+      const snowball = aggregateSnowball === null ? 0 : clamp(aggregateSnowball / fullSnowballAt * 100, 0, 100);
+
+      const score = weightedScore(
+        { matchupThreat, popularity, snowball },
+        banConfig.weights || { matchupThreat: 74, popularity: 19, snowball: 7 }
+      );
+      const bestResponse = knownRows.slice().sort((a, b) => a.threat - b.threat || b.games - a.games || localeSort(a.playerChampion, b.playerChampion))[0] || null;
+      const worstMatchup = knownRows.slice().sort((a, b) => b.threat - a.threat || b.games - a.games || localeSort(a.playerChampion, b.playerChampion))[0] || null;
+      const safeResponses = knownRows.filter((row) => row.threat <= safeAnswerThreatMax);
+      const hasSafeAnswer = safeResponses.length > 0;
+
+      return {
+        candidate,
+        candidateGames,
+        matchupRows,
+        knownCount: knownRows.length,
+        totalCount: normalizedPool.length,
+        knownRatio: knownRows.length / normalizedPool.length,
+        noSafeAnswer,
+        averagePressure,
+        worstExposure,
+        aggregateThreat,
+        matchupThreat,
+        popularity,
+        popularityPercentile,
+        popularityLogarithmic,
+        aggregateSnowball,
+        snowball,
+        score,
+        averageEnemyWinrate: average(knownRows, (row) => row.winrate),
+        averageEnemyDiff: average(knownRows, (row) => row.diff),
+        totalDirectGames: knownRows.reduce((sum, row) => sum + (safeNumber(row.games) ?? 0), 0),
+        safeAnswerThreatMax,
+        safeResponses,
+        hasSafeAnswer,
+        bestResponse,
+        worstMatchup,
+        mostSensitiveMatchup
+      };
+    }).filter(Boolean);
+
+    // L'ordine visuale deve rispecchiare esattamente l'indice ban mostrato.
+    // Le singole componenti vengono usate soltanto come spareggio quando due
+    // indici sono matematicamente uguali, mai per scavalcare un punteggio più alto.
+    rows.sort((a, b) => b.score - a.score
+      || b.matchupThreat - a.matchupThreat
+      || b.popularity - a.popularity
+      || b.snowball - a.snowball
+      || b.aggregateThreat - a.aggregateThreat
+      || b.candidateGames - a.candidateGames
+      || localeSort(a.candidate, b.candidate));
+
+    return {
+      role,
+      pool: normalizedPool,
+      scope,
+      limit,
+      q50Threshold: q50.threshold,
+      q50Count: q50.eligible.length,
+      allCount: q50.all.length,
+      rows: rows.slice(0, limit),
+      allRows: rows,
+      excludedFavorableSensitiveCount,
+      favorableSensitiveMaxWinrate,
+      favorableSensitiveMaxDiff
     };
   }
 
@@ -1433,6 +1663,117 @@
     input?.focus();
   }
 
+  function snowballTierLabel(value) {
+    const number = safeNumber(value);
+    if (number === null) return 'dato parziale';
+    if (number >= 0.25) return 'esplosiva';
+    if (number >= 0.16) return 'alta';
+    if (number >= 0.08) return 'media';
+    return 'bassa';
+  }
+
+  function banCoverageLabel(row) {
+    return row.hasSafeAnswer ? 'Coperto' : 'Non coperto';
+  }
+
+  function banCoverageClass(row) {
+    return row.hasSafeAnswer ? 'covered' : 'uncovered';
+  }
+
+  function banToneClass(row) {
+    if (row.noSafeAnswer >= 0.55 || row.aggregateThreat >= 0.56) return 'danger';
+    if (row.aggregateThreat >= 0.53 || row.worstExposure >= 0.57) return 'warning';
+    if (row.aggregateThreat >= 0.51) return 'info';
+    return 'neutral';
+  }
+
+  function renderBanRecommendations() {
+    const panel = byId('banRecommendationPanel');
+    if (!panel) return;
+    if (!state.started || !state.selected.length) {
+      panel.hidden = true;
+      return;
+    }
+
+    const result = buildBanRecommendations(state.selected, {
+      role: state.role,
+      scope: state.banScope,
+      limit: state.banLimit
+    });
+    state.banRows = result.rows;
+
+    const scopeSelect = byId('banScopeSelect');
+    const limitSelect = byId('banLimitSelect');
+    if (scopeSelect) {
+      scopeSelect.value = state.banScope;
+      const q50Option = scopeSelect.querySelector('option[value="q50"]');
+      const allOption = scopeSelect.querySelector('option[value="all"]');
+      if (q50Option) q50Option.textContent = `Q50 · ${result.q50Count} campioni`;
+      if (allOption) allOption.textContent = `Tutti · ${result.allCount} campioni`;
+    }
+    if (limitSelect) {
+      if (!limitSelect.querySelector(`option[value="${state.banLimit}"]`)) {
+        const option = document.createElement('option');
+        option.value = String(state.banLimit);
+        option.textContent = `Top ${state.banLimit}`;
+        limitSelect.appendChild(option);
+      }
+      limitSelect.value = String(state.banLimit);
+    }
+
+    const scopeText = state.banScope === 'all'
+      ? `tutti i ${result.allCount} campioni disponibili`
+      : `i ${result.q50Count} campioni Q50 con almeno ${integer(result.q50Threshold)} partite`;
+    const poolText = result.pool.join(' / ');
+    const exclusionCopy = result.excludedFavorableSensitiveCount > 0
+      ? ` ${integer(result.excludedFavorableSensitiveCount)} candidati esclusi perché il loro matchup più sensibile resta favorevole alla pool sia per WR sia per WR diff.`
+      : '';
+    byId('banRecommendationSummary').innerHTML = `<strong>${esc(roleLabel(state.role))} · ${esc(poolText)}:</strong> confronto ${esc(scopeText)}. I risultati sono ordinati in modo strettamente decrescente per indice ban finale; WR/Δ, popolarità e snowball contribuiscono al valore secondo i pesi configurati.${esc(exclusionCopy)}`;
+    byId('banResultCount').textContent = `${result.rows.length} ban`;
+
+    const list = byId('banRecommendationRows');
+    if (!result.rows.length) {
+      list.innerHTML = '<div class="counter-empty">Nessun candidato rimasto: i matchup disponibili sono insufficienti oppure il confronto più sensibile è comunque favorevole alla pool per WR e WR diff.</div>';
+      panel.hidden = false;
+      return;
+    }
+
+    list.innerHTML = result.rows.map((row, index) => {
+      const worst = row.worstMatchup;
+      const best = row.bestResponse;
+      const deepLink = worst
+        ? `./visual.html?role=${encodeURIComponent(state.role)}&a=${encodeURIComponent(worst.playerChampion)}&b=${encodeURIComponent(row.candidate)}`
+        : null;
+      const bestCopy = best
+        ? `Miglior risposta: ${best.playerChampion} · WR avversario ${pct(best.winrate, 1)}`
+        : 'Nessuna risposta della pool con dati diretti';
+      const worstCopy = worst
+        ? `Più esposto: ${worst.playerChampion} · WR ${pct(worst.winrate, 1)} · Δ ${signedPct(worst.diff, 1)}`
+        : 'Matchup peggiore non disponibile';
+      const snowCopy = row.aggregateSnowball === null
+        ? 'Snowball N/D'
+        : `Snowball ${pct(row.aggregateSnowball, 1)} · ${snowballTierLabel(row.aggregateSnowball)}`;
+      const content = `
+        <article class="ban-card ${banToneClass(row)}">
+          <div class="ban-rank">#${index + 1}</div>
+          <div class="ban-card-main">
+            <div><h3>${champHtml(row.candidate, 'md')}</h3><p>${integer(row.candidateGames)} partite nel ruolo · ${row.knownCount}/${row.totalCount} matchup noti</p></div>
+            <div class="ban-score"><strong>${scoreFmt(row.score)}</strong><span>indice ban</span></div>
+          </div>
+          <div class="ban-label ${banCoverageClass(row)}">${esc(banCoverageLabel(row))}</div>
+          <div class="ban-metrics">
+            <div><span>Minaccia WR/Δ</span><strong>${scoreFmt(row.matchupThreat)}</strong><small>WR medio ${pct(row.averageEnemyWinrate, 1)} · Δ ${signedPct(row.averageEnemyDiff, 1)} · ${integer(row.totalDirectGames)} partite dirette</small></div>
+            <div><span>Popolarità</span><strong>${scoreFmt(row.popularity)}</strong><small>${integer(row.candidateGames)} partite totali</small></div>
+            <div><span>Snowball</span><strong>${scoreFmt(row.snowball)}</strong><small>${esc(snowCopy)}</small></div>
+          </div>
+          <div class="ban-detail"><span>${esc(bestCopy)}</span><span>${esc(worstCopy)}</span></div>
+          ${deepLink ? `<a class="ban-matchup-link" href="${esc(deepLink)}">Apri il matchup più critico</a>` : ''}
+        </article>`;
+      return content;
+    }).join('');
+    panel.hidden = false;
+  }
+
   function renderCounterCoverage() {
     const panel = byId('counterCoveragePanel');
     if (!panel) return;
@@ -1531,10 +1872,13 @@
     byId('poolPanel').hidden = !state.started;
     if (!state.started) {
       const counterPanel = byId('counterCoveragePanel');
+      const banPanel = byId('banRecommendationPanel');
       if (counterPanel) counterPanel.hidden = true;
+      if (banPanel) banPanel.hidden = true;
       return;
     }
     renderPool();
+    renderBanRecommendations();
     renderRecommendations();
     renderFinal();
     renderCounterCoverage();
@@ -1587,6 +1931,7 @@
     state.started = false;
     state.customChampion = null;
     state.recommendationRows = [];
+    state.banRows = [];
     byId('customChampion').value = '';
     renderWorkspace();
     announce('Pool Builder azzerato.');
@@ -1618,7 +1963,12 @@
       ['matchup.coverageBlendWeights', CONFIG?.matchup?.coverageBlendWeights],
       ['matchup.weaknessBlendWeights', CONFIG?.matchup?.weaknessBlendWeights],
       ['recommendation.weights', CONFIG?.recommendation?.weights],
-      ['poolEvaluation.weights', CONFIG?.poolEvaluation?.weights]
+      ['poolEvaluation.weights', CONFIG?.poolEvaluation?.weights],
+      ['banRecommendation.weights', CONFIG?.banRecommendation?.weights],
+      ['banRecommendation.matchupWeights', CONFIG?.banRecommendation?.matchupWeights],
+      ['banRecommendation.poolThreatWeights', CONFIG?.banRecommendation?.poolThreatWeights],
+      ['banRecommendation.popularityWeights', CONFIG?.banRecommendation?.popularityWeights],
+      ['banRecommendation.snowballWeights', CONFIG?.banRecommendation?.snowballWeights]
     ];
     weightGroups.forEach(([name, weights]) => {
       const total = Object.values(weights || {}).reduce((sum, value) => sum + Math.max(0, safeNumber(value) ?? 0), 0);
@@ -1659,6 +2009,7 @@
       getMatchup: (role, champion, opponent) => getMatchup(role, champion, opponent),
       evaluateCurrentPool: () => evaluatePool(state.selected),
       buildCounterMatrix: (pool = state.selected, options = {}) => buildPoolCounterMatrix(pool, options),
+      buildBanRecommendations: (pool = state.selected, options = {}) => buildBanRecommendations(pool, options),
       parseQuickPool: (text) => parseQuickPoolText(text),
       recommendationRows: () => state.recommendationRows.map((row) => ({ ...row })),
       validateConfig: () => validateConfiguration().slice()
@@ -1722,6 +2073,16 @@
     });
     byId('undoBtn').addEventListener('click', () => removeAt(state.selected.length - 1));
     byId('resetBtn').addEventListener('click', resetBuilder);
+    byId('banScopeSelect').addEventListener('change', (event) => {
+      state.banScope = event.target.value === 'all' ? 'all' : 'q50';
+      renderBanRecommendations();
+      announce(`Consigli ban aggiornati: ${state.banScope === 'all' ? 'tutti i campioni' : 'campioni Q50'}.`);
+    });
+    byId('banLimitSelect').addEventListener('change', (event) => {
+      state.banLimit = Math.max(1, Math.min(30, Number(event.target.value) || BAN_RECOMMENDATION_LIMIT));
+      renderBanRecommendations();
+      announce(`Mostro ${state.banLimit} consigli ban.`);
+    });
     byId('counterScopeSelect').addEventListener('change', (event) => {
       state.counterScope = event.target.value === 'all' ? 'all' : 'q50';
       renderCounterCoverage();
