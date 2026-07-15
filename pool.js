@@ -14,15 +14,15 @@
   };
 
   // --------------------------------------------------------------------------
-  // MAPPA DEL FILE
-  // 1) utility e lettura dati
-  // 2) calcolo del singolo matchup e aggregazione della copertura
-  // 3) forza, stile, danno e affidabilità del campione
-  // 4) punteggio del prossimo campione consigliato
-  // 5) valutazione finale della pool
-  // 6) rendering e interazioni dell'interfaccia
+  // FILE MAP
+  // 1) utilities and data access
+  // 2) individual matchup calculation and coverage aggregation
+  // 3) champion strength, style, damage, and reliability
+  // 4) score for the next recommended champion
+  // 5) final pool evaluation
+  // 6) interface rendering and interactions
   //
-  // Tutti i numeri modificabili sono in pool.config.js. Qui restano le formule.
+  // All editable numbers are in pool.config.js. Only formulas remain here.
   // --------------------------------------------------------------------------
   const PROFILE_VECTOR_FIELDS = CONFIG?.profileDiversity?.fields || [];
   const RECOMMENDATION_LIMIT = CONFIG?.recommendation?.limit ?? 7;
@@ -38,24 +38,24 @@
   };
   const POOL_COUNTER_METRICS = {
     wilson: {
-      label: 'Wilson prudenziale',
-      description: 'Ordina per il limite inferiore Wilson: premia il win rate ma penalizza automaticamente i matchup con poche partite.'
+      label: 'Conservative Wilson',
+      description: 'Sorts by the Wilson lower bound: rewards win rate but automatically penalizes matchups with few matches.'
     },
     decision: {
-      label: 'Indice Pool Builder',
-      description: 'Usa lo stesso indice del builder: combina win rate, scarto dal rendimento abituale e riduzione verso il 50% quando il campione statistico è piccolo.'
+      label: 'Pool Builder Index',
+      description: 'Uses the same index as the builder: combines win rate, difference from usual performance, and shrinkage toward 50% when the statistical sample is small.'
     },
     winrate: {
       label: 'Win rate matchup',
-      description: 'Ordina direttamente per percentuale di vittorie del campione della pool contro l’avversario indicato.'
+      description: 'Sorts directly by the pool champion\'s win rate against the specified opponent.'
     },
     diff: {
-      label: 'Scarto dal WR abituale',
-      description: 'Premia chi rende meglio del proprio win rate generale proprio in questo matchup.'
+      label: 'Difference from usual WR',
+      description: 'Rewards champions who outperform their overall win rate specifically in this matchup.'
     },
     games: {
-      label: 'Numero di partite',
-      description: 'Mostra per primi i confronti con il campione statistico più ampio.'
+      label: 'Number of matches',
+      description: 'Shows matchups with the largest statistical sample first.'
     }
   };
 
@@ -141,12 +141,12 @@
     return Math.max(0, safeNumber(games) ?? 0) ** Math.max(0, exponent);
   }
 
-  // Quanto è probabile incontrare davvero questo avversario nella lane, in base
-  // a quante partite totali ha giocato lì (proxy di pick rate/popolarità).
-  // Un avversario giocatissimo pesa di più nella copertura e nelle debolezze
-  // rispetto a uno rarissimo, anche se il matchup diretto contro di lui è
-  // statisticamente solido. Indipendente dalla affidabilità del singolo dato
-  // (quella resta gestita da evidenceWeight).
+  // How likely you are to actually encounter this opponent in the lane, based
+  // on how many total matches they have played there (a proxy for pick rate/popularity).
+  // A heavily played opponent weighs more in coverage and weaknesses
+  // than an extremely rare one, even if the direct matchup against them is
+  // statistically solid. This is independent of the reliability of the individual data point
+  // (which remains handled by evidenceWeight).
   function opponentLikelihoodWeight(role, opponent) {
     const exponent = safeNumber(CONFIG?.matchup?.opponentLikelihoodExponent) ?? 0.6;
     let weight = 1;
@@ -275,18 +275,18 @@
     return champions.find((champion) => normalizeLookup(champion) === normalized) || null;
   }
 
-  // Formato principale: TOP — Singed / Irelia / Nasus
-  // Sono accettati anche trattino, due punti, virgole, punto e virgola e righe multiple.
+  // Main format: TOP — Singed / Irelia / Nasus
+  // Hyphens, colons, commas, semicolons, and multiple lines are also accepted.
   function parseQuickPoolText(rawText) {
     const text = String(rawText ?? '').trim();
-    if (!text) return { role: null, pool: [], unknown: [], error: 'Incolla prima una lane e almeno un campione.' };
+    if (!text) return { role: null, pool: [], unknown: [], error: 'Paste a lane and at least one champion first.' };
     const match = text.match(/^\s*([A-Za-zÀ-ÿ]+)\s*(?:—|–|-|:|\|)\s*([\s\S]+)$/);
     if (!match) {
       return {
         role: null,
         pool: [],
         unknown: [],
-        error: 'Formato non riconosciuto. Usa per esempio: TOP — Singed / Irelia / Nasus'
+        error: 'Unrecognized format. For example, use: TOP — Singed / Irelia / Nasus'
       };
     }
 
@@ -296,7 +296,7 @@
         role: null,
         pool: [],
         unknown: [],
-        error: `Lane “${match[1].trim()}” non riconosciuta. Usa Top, Jungle, Mid, BOT oppure Support.`
+        error: `Lane “${match[1].trim()}” not recognized. Use Top, Jungle, Mid, BOT, or Support.`
       };
     }
 
@@ -320,7 +320,7 @@
         role,
         pool: [],
         unknown,
-        error: `Nessun campione riconosciuto per la lane ${roleLabel(role)}.`
+        error: `No champion recognized for lane ${roleLabel(role)}.`
       };
     }
     return { role, pool, unknown, error: null };
@@ -364,7 +364,7 @@
   }
 
   // ==========================================================================
-  // 2. MATCHUP: LETTURA, CORREZIONE DEL CAMPIONE E AGGREGAZIONE
+  // 2. MATCHUP: INTERPRETATION, SAMPLE ADJUSTMENT, AND AGGREGATION
   // ==========================================================================
 
   function objectFromColumns(values) {
@@ -422,9 +422,9 @@
       CONFIG?.matchup?.rawScoreWeights || { directWinrate: 75, relativeToGeneral: 25 }
     );
 
-    // Il decisionScore è il valore usato OVUNQUE per confrontare due risposte:
-    // scelta del miglior campione, spiegazioni e aggregati della pool.
-    // In questo modo una micro-sample non può generare una motivazione falsa.
+    // The decisionScore is the value used EVERYWHERE to compare two answers:
+    // selecting the best champion, explanations, and pool aggregates.
+    // This prevents a tiny sample from generating a false explanation.
     const shrinkageGames = Math.max(0, safeNumber(CONFIG?.matchup?.shrinkageGames) ?? 20);
     const reliability = shrinkageGames === 0 ? 1 : games / (games + shrinkageGames);
     const decisionScore = MATCHUP_NEUTRAL + (matchupScore - MATCHUP_NEUTRAL) * reliability;
@@ -473,7 +473,7 @@
       .filter((champion) => available.has(champion));
   }
 
-  // Funzione pubblica: riceve una pool nello stesso formato di state.selected.
+  // Public function: accepts a pool in the same format as state.selected.
   // options: { role, scope: 'q50'|'all', metric, confidence, query }.
   function buildPoolCounterMatrix(pool = state.selected, options = {}) {
     const role = options.role || state.role;
@@ -632,10 +632,10 @@
       const knownRows = matchupRows.filter((row) => row.hasData && safeNumber(row.threat) !== null);
       if (!knownRows.length) return null;
 
-      // Il matchup più sensibile è quello con la maggiore variazione di WR tra
-      // vantaggio e svantaggio al minuto 15. Se persino quel confronto resta
-      // favorevole alla pool sia per WR diretto sia per WR diff, il campione non
-      // è una priorità di ban e viene escluso prima di applicare popolarità e score.
+      // The most sensitive matchup is the one with the greatest WR variation between
+      // being ahead and behind at 15 minutes. If even that matchup remains
+      // favorable to the pool in both direct WR and WR difference, the champion is not
+      // a ban priority and is excluded before popularity and score are applied.
       const mostSensitiveMatchup = knownRows
         .filter((row) => safeNumber(row.snowballSensitivity) !== null)
         .slice()
@@ -655,8 +655,8 @@
         return null;
       }
 
-      // I matchup mancanti entrano come neutrali. In questo modo un singolo
-      // hard counter noto non viene scambiato per una minaccia all'intera pool.
+      // Missing matchups are included as neutral. This prevents a single known
+      // hard counter from being mistaken for a threat to the entire pool.
       const threatValues = matchupRows.map((row) => safeNumber(row.threat) ?? MATCHUP_NEUTRAL);
       const noSafeAnswer = Math.min(...threatValues);
       const averagePressure = threatValues.reduce((sum, value) => sum + value, 0) / threatValues.length;
@@ -731,9 +731,9 @@
       };
     }).filter(Boolean);
 
-    // L'ordine visuale deve rispecchiare esattamente l'indice ban mostrato.
-    // Le singole componenti vengono usate soltanto come spareggio quando due
-    // indici sono matematicamente uguali, mai per scavalcare un punteggio più alto.
+    // The visual order must exactly match the displayed ban index.
+    // The individual components are used only as tie-breakers when two
+    // indices are mathematically equal, never to outrank a higher score.
     rows.sort((a, b) => b.score - a.score
       || b.matchupThreat - a.matchupThreat
       || b.popularity - a.popularity
@@ -852,7 +852,7 @@
   }
 
   // ==========================================================================
-  // 3. METRICHE DEL CAMPIONE: STILE, DANNO, FORZA E AFFIDABILITÀ
+  // 3. CHAMPION METRICS: STYLE, DAMAGE, STRENGTH, AND RELIABILITY
   // ==========================================================================
 
   function percentileValue(profile, field) {
@@ -932,10 +932,10 @@
   }
 
   function damageTypeLabel(type) {
-    if (type === 'physical') return 'fisico';
-    if (type === 'magic') return 'magico';
-    if (type === 'unknown') return 'dati non disponibili';
-    return 'ibrido';
+    if (type === 'physical') return 'physical';
+    if (type === 'magic') return 'magic';
+    if (type === 'unknown') return 'data unavailable';
+    return 'hybrid';
   }
 
   function poolDamageVariety(pool) {
@@ -971,7 +971,7 @@
   }
 
   function damageDescription(pool) {
-    if (!pool.length) return { tone: '', html: 'Aggiungi il primo campione per analizzare il danno.' };
+    if (!pool.length) return { tone: '', html: 'Add the first champion to analyze damage.' };
     const profiles = pool.map((champion) => ({ champion, ...damageProfile(champion) }));
     const known = profiles.filter((profile) => profile.known);
     const unknown = profiles.filter((profile) => !profile.known);
@@ -982,20 +982,20 @@
     let tone = 'warn';
     let text;
     if (!known.length) {
-      text = '<strong>Dati sul danno non disponibili.</strong> La varietà non viene stimata artificialmente e riceve punteggio 0.';
+      text = '<strong>Damage data unavailable.</strong> Variety is not estimated artificially and receives a score of 0.';
     } else if (physical.length && magic.length) {
       tone = 'ok';
-      text = '<strong>Danno ben diversificato.</strong> La pool contiene almeno un’opzione fisica e una magica chiare.';
+      text = '<strong>Well-diversified damage.</strong> The pool contains at least one clear physical option and one clear magic option.';
     } else if (physical.length && !magic.length) {
-      text = '<strong>Manca una vera opzione magica.</strong> La pool è prevalentemente fisica e può facilitare l’adattamento delle difese avversarie.';
+      text = '<strong>No true magic-damage option.</strong> The pool is predominantly physical and may make it easier for opponents to adapt their defenses.';
     } else if (magic.length && !physical.length) {
-      text = '<strong>Manca una vera opzione fisica.</strong> La pool è prevalentemente magica e può facilitare l’adattamento delle difese avversarie.';
+      text = '<strong>No true physical-damage option.</strong> The pool is predominantly magic and may make it easier for opponents to adapt their defenses.';
     } else {
-      text = '<strong>Pool principalmente ibrida.</strong> Offre flessibilità parziale, ma non equivale sempre a possedere uno specialista fisico e uno magico.';
+      text = '<strong>Primarily hybrid pool.</strong> It offers partial flexibility, but is not always equivalent to having both a physical specialist and a magic specialist.';
     }
-    if (hybrid.length) text += ` ${hybrid.length} ${hybrid.length === 1 ? 'campione ha' : 'campioni hanno'} un profilo ibrido.`;
-    if (trueDamage.length) text += ` Danno puro rilevante: ${trueDamage.map((profile) => esc(profile.champion)).join(', ')}.`;
-    if (unknown.length) text += ` Dati mancanti: ${unknown.map((profile) => esc(profile.champion)).join(', ')}; il punteggio viene penalizzato.`;
+    if (hybrid.length) text += ` ${hybrid.length} ${hybrid.length === 1 ? 'champion has' : 'champions have'} a hybrid profile.`;
+    if (trueDamage.length) text += ` Significant true damage: ${trueDamage.map((profile) => esc(profile.champion)).join(', ')}.`;
+    if (unknown.length) text += ` Missing data: ${unknown.map((profile) => esc(profile.champion)).join(', ')}; the score is penalized.`;
     return { tone, html: text };
   }
 
@@ -1029,7 +1029,7 @@
   }
 
   // ==========================================================================
-  // 4. RACCOMANDAZIONE DEL PROSSIMO CAMPIONE
+  // 4. NEXT-CHAMPION RECOMMENDATION
   // ==========================================================================
 
   function candidateRawMetrics(candidate, pool, currentCore) {
@@ -1158,7 +1158,7 @@
   }
 
   // ==========================================================================
-  // 5. VALUTAZIONE FINALE DELLA POOL
+  // 5. FINAL POOL EVALUATION
   // ==========================================================================
 
   function evaluatePool(pool) {
@@ -1200,7 +1200,7 @@
   function finalLabel(score) {
     const labels = Array.isArray(CONFIG?.poolEvaluation?.labels) ? CONFIG.poolEvaluation.labels : [];
     const sorted = labels.slice().sort((a, b) => (safeNumber(b.min) ?? 0) - (safeNumber(a.min) ?? 0));
-    return sorted.find((entry) => score >= (safeNumber(entry.min) ?? 0))?.text || 'Pool da valutare';
+    return sorted.find((entry) => score >= (safeNumber(entry.min) ?? 0))?.text || 'Pool to evaluate';
   }
 
   function toneForScore(score) {
@@ -1223,28 +1223,28 @@
 
   function recommendationReasons(row) {
     const reasons = [];
-    if (row.fixedCount > 0) reasons.push({ type: 'plus', text: `Risolve ${row.fixedCount} ${row.fixedCount === 1 ? 'debolezza' : 'debolezze'} con evidenza statistica sufficiente.` });
-    if (row.improvedCount > 0) reasons.push({ type: 'plus', text: `Diventa la risposta migliore contro ${row.improvedCount} avversari rilevanti.` });
-    if (row.newCoverageCount > 0) reasons.push({ type: 'plus', text: `Aggiunge una risposta nota contro ${row.newCoverageCount} ${row.newCoverageCount === 1 ? 'avversario prima scoperto' : 'avversari prima scoperti'}.` });
+    if (row.fixedCount > 0) reasons.push({ type: 'plus', text: `Resolves ${row.fixedCount} ${row.fixedCount === 1 ? 'weakness' : 'weaknesses'} with sufficient statistical evidence.` });
+    if (row.improvedCount > 0) reasons.push({ type: 'plus', text: `Becomes the best answer against ${row.improvedCount} relevant opponents.` });
+    if (row.newCoverageCount > 0) reasons.push({ type: 'plus', text: `Adds a known answer against ${row.newCoverageCount} ${row.newCoverageCount === 1 ? 'previously uncovered opponent' : 'previously uncovered opponents'}.` });
     const damage = damageProfile(row.candidate);
     const currentTypes = new Set(state.selected.map((champion) => damageProfile(champion).type));
-    if (damage.type === 'magic' && !currentTypes.has('magic')) reasons.push({ type: 'plus', text: 'Aggiunge una vera opzione di danno magico.' });
-    else if (damage.type === 'physical' && !currentTypes.has('physical')) reasons.push({ type: 'plus', text: 'Aggiunge una vera opzione di danno fisico.' });
-    else if (damage.type === 'hybrid') reasons.push({ type: 'info', text: 'Aggiunge un profilo di danno ibrido.' });
-    else if (damage.type === 'unknown') reasons.push({ type: 'minus', text: 'Profilo del danno non disponibile nel dataset.' });
+    if (damage.type === 'magic' && !currentTypes.has('magic')) reasons.push({ type: 'plus', text: 'Adds a true magic-damage option.' });
+    else if (damage.type === 'physical' && !currentTypes.has('physical')) reasons.push({ type: 'plus', text: 'Adds a true physical-damage option.' });
+    else if (damage.type === 'hybrid') reasons.push({ type: 'info', text: 'Adds a hybrid damage profile.' });
+    else if (damage.type === 'unknown') reasons.push({ type: 'minus', text: 'Damage profile unavailable in the dataset.' });
     const diversityHigh = CONFIG?.recommendation?.diversityHigh ?? 0.35;
     const diversityLow = CONFIG?.recommendation?.diversityLow ?? 0.16;
-    if (row.profileDiversity >= diversityHigh) reasons.push({ type: 'plus', text: 'Profilo poco sovrapposto ai campioni già scelti.' });
-    else if (row.profileDiversity < diversityLow) reasons.push({ type: 'minus', text: 'Profilo simile a una scelta già presente.' });
-    if (row.belowRigorous) reasons.push({ type: 'minus', text: 'Copertura statistica sotto la soglia Rigorosa.' });
-    else reasons.push({ type: 'info', text: `Copertura Rigorosa: ${integer(profileGames(state.role, row.candidate))} partite nel ruolo.` });
+    if (row.profileDiversity >= diversityHigh) reasons.push({ type: 'plus', text: 'Profile has little overlap with the champions already selected.' });
+    else if (row.profileDiversity < diversityLow) reasons.push({ type: 'minus', text: 'Profile is similar to a choice already present.' });
+    if (row.belowRigorous) reasons.push({ type: 'minus', text: 'Statistical coverage below the Rigorous threshold.' });
+    else reasons.push({ type: 'info', text: `Rigorous coverage: ${integer(profileGames(state.role, row.candidate))} matches in the role.` });
     const warningRatio = CONFIG?.recommendation?.knownOpponentWarningRatio ?? 0.60;
-    if (row.knownCount < Math.ceil(row.relevantOpponentCount * warningRatio)) reasons.push({ type: 'minus', text: 'Diversi matchup diretti non sono disponibili: valutazione meno affidabile.' });
+    if (row.knownCount < Math.ceil(row.relevantOpponentCount * warningRatio)) reasons.push({ type: 'minus', text: 'Several direct matchups are unavailable: less reliable evaluation.' });
     return reasons.slice(0, 4);
   }
 
   // ==========================================================================
-  // 6. INTERFACCIA E INTERAZIONI
+  // 6. INTERFACE AND INTERACTIONS
   // ==========================================================================
 
   function updateHeroStats() {
@@ -1267,17 +1267,17 @@
   function renderThreshold() {
     const box = byId('thresholdBox');
     if (!state.role) {
-      box.textContent = 'Seleziona una lane per calcolare la soglia.';
+      box.textContent = 'Select a lane to calculate the threshold.';
       return;
     }
     const allCount = championsForRole().length;
     const coverage = allCount ? state.rigorousChampions.length / allCount : 0;
     const scope = CONFIG?.dataSelection?.evaluationOpponents === 'rigorous'
-      ? 'La valutazione copre soltanto questo gruppo.'
+      ? 'The evaluation covers only this group.'
       : CONFIG?.dataSelection?.evaluationOpponents === 'blend'
-        ? 'La valutazione copre tutta la lane, ma pesa di più gli avversari Rigorosi e quelli più popolari.'
-        : 'La valutazione copre tutta la lane; il gruppo Rigoroso serve soprattutto per i consigli.';
-    box.innerHTML = `<strong>Filtro Rigoroso:</strong> almeno ${integer(state.rigorousThreshold)} partite nel ruolo. Superano il filtro ${state.rigorousChampions.length}/${allCount} campioni (${pct(coverage, 0)}). ${esc(scope)}`;
+        ? 'The evaluation covers the entire lane, but gives greater weight to Rigorous and more popular opponents.'
+        : 'The evaluation covers the entire lane; the Rigorous group is used mainly for recommendations.';
+    box.innerHTML = `<strong>Rigorous Filter:</strong> at least ${integer(state.rigorousThreshold)} matches in the role. The filter is passed by ${state.rigorousChampions.length}/${allCount} champions (${pct(coverage, 0)}). ${esc(scope)}`;
   }
 
   function updateStartButton() {
@@ -1289,9 +1289,9 @@
     const rigorous = calculateRigorousSet(role);
     state.rigorousThreshold = rigorous.threshold;
     state.rigorousChampions = rigorous.eligible;
-    // 'blend' usa l'intera lane come 'all': il bilanciamento verso il gruppo
-    // Rigoroso avviene tramite il peso (opponentLikelihoodWeight), non
-    // escludendo avversari dall'insieme valutato.
+    // 'blend' uses the entire lane like 'all': the bias toward the
+    // Rigorous group is applied through the weight (opponentLikelihoodWeight), not by
+    // excluding opponents from the evaluated set.
     state.opponents = CONFIG?.dataSelection?.evaluationOpponents === 'rigorous'
       ? rigorous.eligible.slice()
       : rigorous.all.slice();
@@ -1361,7 +1361,7 @@
       list.innerHTML = filtered.length ? filtered.map((option, index) => `
         <button type="button" id="${inputId}-option-${index}" class="combo-option${option.low ? ' low' : ''}${index === activeIndex ? ' active' : ''}" role="option" tabindex="-1" aria-selected="${index === activeIndex ? 'true' : 'false'}" data-value="${esc(option.value)}">
           <strong>${champHtml(option.label, 'sm')}</strong><small>${esc(option.meta || '')}</small>
-        </button>`).join('') : '<div class="combo-empty">Nessun campione trovato.</div>';
+        </button>`).join('') : '<div class="combo-empty">No champion found.</div>';
       setExpanded(document.activeElement === input);
       if (activeIndex >= 0 && filtered[activeIndex]) input.setAttribute('aria-activedescendant', `${inputId}-option-${activeIndex}`);
       else input.removeAttribute('aria-activedescendant');
@@ -1416,24 +1416,24 @@
 
   function renderPool() {
     const evaluation = evaluatePool(state.selected);
-    byId('poolTitle').textContent = `${roleLabel(state.role)} · ${state.selected.length}/${state.size} campioni`;
-    byId('poolSubtitle').textContent = state.selected.length < state.size ? 'Aggiungi il prossimo pick per completare la pool.' : 'Pool completata: valutazione finale disponibile.';
+    byId('poolTitle').textContent = `${roleLabel(state.role)} · ${state.selected.length}/${state.size} champions`;
+    byId('poolSubtitle').textContent = state.selected.length < state.size ? 'Add the next pick to complete the pool.' : 'Pool complete: final evaluation available.';
     byId('slots').innerHTML = Array.from({ length: state.size }, (_, index) => {
       const champion = state.selected[index];
-      if (!champion) return `<div class="slot"><div class="slot-index">Pick ${index + 1}</div><div class="slot-name" style="color:var(--ink-faint)">Vuoto</div></div>`;
+      if (!champion) return `<div class="slot"><div class="slot-index">Pick ${index + 1}</div><div class="slot-name" style="color:var(--ink-faint)">Empty</div></div>`;
       const profile = profilesForRole()?.[champion] || {};
       const damage = damageProfile(champion);
       const canRemove = state.selected.length > 1;
-      return `<div class="slot filled"><div class="slot-index">Pick ${index + 1}</div><div class="slot-name">${champHtml(champion, 'md')}</div><div class="slot-meta">WR ${pct(profile.general_winrate)} · ${esc(damageTypeLabel(damage.type))}</div>${canRemove ? `<button class="slot-remove" type="button" data-remove-index="${index}">Rimuovi</button>` : ''}</div>`;
+      return `<div class="slot filled"><div class="slot-index">Pick ${index + 1}</div><div class="slot-name">${champHtml(champion, 'md')}</div><div class="slot-meta">WR ${pct(profile.general_winrate)} · ${esc(damageTypeLabel(damage.type))}</div>${canRemove ? `<button class="slot-remove" type="button" data-remove-index="${index}">Remove</button>` : ''}</div>`;
     }).join('');
 
     const scoreItems = [
-      ['Valutazione corrente', evaluation?.finalScore, 'Punteggio ricalcolato sull’intera pool.'],
-      ['Copertura matchup', evaluation?.matchupCoverage, `Sintesi di media statistica, media per avversario e ${Math.round((CONFIG?.matchup?.worstTailShare ?? 0.20) * 100)}% peggiore.`],
-      ['Controllo debolezze', evaluation?.weaknessControl, 'Premia la tenuta media ma conserva peso per i matchup peggiori.'],
-      ['Forza generale', evaluation?.averageChampionStrength, 'Solidità individuale dei campioni.'],
-      ['Varietà danno', evaluation?.damageVariety, 'Opzioni fisiche, magiche e ibride; i dati mancanti penalizzano il valore.'],
-      ['Affidabilità', evaluation?.dataConfidence, `${evaluation?.knownMatchups ?? 0}/${evaluation?.totalOpponents ?? 0} avversari con risposta nota.`]
+      ['Current evaluation', evaluation?.finalScore, 'Score recalculated across the entire pool.'],
+      ['Matchup coverage', evaluation?.matchupCoverage, `Summary of statistical average, opponent-balanced average, and ${Math.round((CONFIG?.matchup?.worstTailShare ?? 0.20) * 100)}% worst tail.`],
+      ['Weakness control', evaluation?.weaknessControl, 'Rewards average resilience while preserving weight for the worst matchups.'],
+      ['Overall strength', evaluation?.averageChampionStrength, 'Individual strength of the champions.'],
+      ['Damage variety', evaluation?.damageVariety, 'Physical, magic, and hybrid options; missing data penalizes the value.'],
+      ['Reliability', evaluation?.dataConfidence, `${evaluation?.knownMatchups ?? 0}/${evaluation?.totalOpponents ?? 0} opponents with a known answer.`]
     ];
     byId('currentScores').innerHTML = scoreItems.map(([label, value, note]) => `<div class="score-card"><div class="score-label">${esc(label)}</div><div class="score-value ${toneForScore(value)}">${scoreFmt(value)}</div><div class="score-note">${esc(note)}</div></div>`).join('');
     const damage = damageDescription(state.selected);
@@ -1453,11 +1453,11 @@
     }
     state.recommendationRows = buildCandidateRows(state.selected);
     const top = state.recommendationRows.slice(0, RECOMMENDATION_LIMIT);
-    byId('recoCount').textContent = `Scelta ${state.selected.length + 1} di ${state.size}`;
+    byId('recoCount').textContent = `Choice ${state.selected.length + 1} di ${state.size}`;
     byId('recommendations').innerHTML = top.length ? top.map((row, index) => {
       const reasons = recommendationReasons(row);
-      return `<article class="reco"><div class="reco-rank">${index + 1}</div><div><h3>${champHtml(row.candidate, 'md')}</h3><div class="reco-sub">WR ${pct(profilesForRole()?.[row.candidate]?.general_winrate)} · ${integer(profileGames(state.role, row.candidate))} partite</div></div><div class="reco-score ${toneForScore(row.score)}">${scoreFmt(row.score)}<div class="reco-sub">indice /100</div></div><div class="reco-reasons">${reasons.map((reason) => `<div class="reason ${reason.type}">${esc(reason.text)}</div>`).join('')}</div><button type="button" data-add-champion="${esc(row.candidate)}">Aggiungi</button></article>`;
-    }).join('') : '<div class="notice warn">Non ci sono altri campioni disponibili per questa lane.</div>';
+      return `<article class="reco"><div class="reco-rank">${index + 1}</div><div><h3>${champHtml(row.candidate, 'md')}</h3><div class="reco-sub">WR ${pct(profilesForRole()?.[row.candidate]?.general_winrate)} · ${integer(profileGames(state.role, row.candidate))} matches</div></div><div class="reco-score ${toneForScore(row.score)}">${scoreFmt(row.score)}<div class="reco-sub">index /100</div></div><div class="reco-reasons">${reasons.map((reason) => `<div class="reason ${reason.type}">${esc(reason.text)}</div>`).join('')}</div><button type="button" data-add-champion="${esc(row.candidate)}">Add</button></article>`;
+    }).join('') : '<div class="notice warn">No other champions are available for this lane.</div>';
     panel.hidden = false;
     customPanel.hidden = false;
     state.comboControllers.forEach((controller) => controller.setOptions(championOptions(true)));
@@ -1487,9 +1487,9 @@
       preview.innerHTML = '';
       return;
     }
-    const warning = row.belowRigorous ? ' Scelta personale sotto la soglia Rigorosa: valutazione meno affidabile.' : '';
+    const warning = row.belowRigorous ? ' Personal choice below the Rigorous threshold: less reliable evaluation.' : '';
     const damage = damageProfile(row.candidate);
-    preview.innerHTML = `<div class="preview-card"><div><h3>${champHtml(row.candidate, 'md')}</h3><p>Indice di aggiunta ${scoreFmt(row.score)}/100. Diventa la risposta migliore in ${row.improvedCount} matchup, ne risolve ${row.fixedCount} e aggiunge ${row.newCoverageCount} risposte prima mancanti.${esc(warning)} Profilo danno: ${esc(damageTypeLabel(damage.type))}.</p></div><div class="preview-score ${toneForScore(row.score)}">${scoreFmt(row.score)}</div></div>`;
+    preview.innerHTML = `<div class="preview-card"><div><h3>${champHtml(row.candidate, 'md')}</h3><p>Addition Index ${scoreFmt(row.score)}/100. Becomes the best answer in ${row.improvedCount} matchups, resolves ${row.fixedCount} of them, and adds ${row.newCoverageCount} previously missing answers.${esc(warning)} Damage profile: ${esc(damageTypeLabel(damage.type))}.</p></div><div class="preview-score ${toneForScore(row.score)}">${scoreFmt(row.score)}</div></div>`;
     preview.hidden = false;
   }
 
@@ -1506,10 +1506,10 @@
   function quickCounterCell(answer, rank, target) {
     if (!answer) return '<td class="quick-counter-empty">—</td>';
     if (!answer.hasData) {
-      return `<td><div class="quick-table-counter unavailable"><span>#${rank}</span><strong>${champHtml(answer.champion, 'xs')}</strong><em>N/D</em><small>Matchup assente</small></div></td>`;
+      return `<td><div class="quick-table-counter unavailable"><span>#${rank}</span><strong>${champHtml(answer.champion, 'xs')}</strong><em>N/D</em><small>Matchup missing</small></div></td>`;
     }
     const deepLink = `./visual.html?role=${encodeURIComponent(state.quickRole)}&a=${encodeURIComponent(answer.champion)}&b=${encodeURIComponent(target)}`;
-    return `<td><a class="quick-table-counter" href="${esc(deepLink)}" title="Apri ${esc(answer.champion)} contro ${esc(target)}"><span>#${rank}</span><strong>${champHtml(answer.champion, 'xs')}</strong><em>${esc(poolCounterMetricFormat(answer, state.quickMetric))}</em><small>WR ${pct(answer.winrate, 1)} · Δ ${signedPct(answer.diff, 1)} · ${integer(answer.games)} game</small></a></td>`;
+    return `<td><a class="quick-table-counter" href="${esc(deepLink)}" title="Open ${esc(answer.champion)} against ${esc(target)}"><span>#${rank}</span><strong>${champHtml(answer.champion, 'xs')}</strong><em>${esc(poolCounterMetricFormat(answer, state.quickMetric))}</em><small>WR ${pct(answer.winrate, 1)} · Δ ${signedPct(answer.diff, 1)} · ${integer(answer.games)} game</small></a></td>`;
   }
 
   function renderQuickCounterTable() {
@@ -1541,7 +1541,7 @@
       const q50Option = scopeSelect.querySelector('option[value="q50"]');
       const allOption = scopeSelect.querySelector('option[value="all"]');
       if (q50Option) q50Option.textContent = `Q50 · ${matrix.q50Count}`;
-      if (allOption) allOption.textContent = `Tutti · ${matrix.allCount}`;
+      if (allOption) allOption.textContent = `All · ${matrix.allCount}`;
     }
     if (metricSelect) metricSelect.value = state.quickMetric;
     if (confidenceSelect) confidenceSelect.value = String(state.quickConfidence);
@@ -1550,26 +1550,26 @@
 
     const metric = POOL_COUNTER_METRICS[state.quickMetric] || POOL_COUNTER_METRICS.wilson;
     const scopeText = state.quickScope === 'all'
-      ? `tutti i ${matrix.allCount} campioni del ruolo`
-      : `${matrix.q50Count} campioni Q50 con almeno ${integer(matrix.q50Threshold)} partite`;
-    byId('quickCounterSummary').innerHTML = `<strong>${esc(roleLabel(state.quickRole))}</strong> · Pool: <strong>${state.quickPool.map(esc).join(' / ')}</strong> · ${esc(scopeText)} · ordinamento: <strong>${esc(metric.label)}</strong>.`;
-    byId('quickCounterCount').textContent = `${matrix.rows.length} ${matrix.rows.length === 1 ? 'riga' : 'righe'}`;
+      ? `all ${matrix.allCount} champions in the role`
+      : `${matrix.q50Count} Q50 champions with at least ${integer(matrix.q50Threshold)} matches`;
+    byId('quickCounterSummary').innerHTML = `<strong>${esc(roleLabel(state.quickRole))}</strong> · Pool: <strong>${state.quickPool.map(esc).join(' / ')}</strong> · ${esc(scopeText)} · sorting: <strong>${esc(metric.label)}</strong>.`;
+    byId('quickCounterCount').textContent = `${matrix.rows.length} ${matrix.rows.length === 1 ? 'row' : 'rows'}`;
     const download = byId('quickDownloadBtn');
     if (download) download.disabled = !matrix.rows.length;
 
     const maxRanks = Math.max(1, state.quickPool.length);
     const head = byId('quickCounterTableHead');
     const body = byId('quickCounterTableBody');
-    head.innerHTML = `<tr><th scope="col">Campione della lane</th><th scope="col">Partite ruolo</th><th scope="col">Stato</th>${Array.from({ length: maxRanks }, (_, index) => `<th scope="col">#${index + 1} della pool</th>`).join('')}</tr>`;
+    head.innerHTML = `<tr><th scope="col">Lane champion</th><th scope="col">Role matches</th><th scope="col">Status</th>${Array.from({ length: maxRanks }, (_, index) => `<th scope="col">#${index + 1} from the pool</th>`).join('')}</tr>`;
 
     if (!matrix.rows.length) {
-      body.innerHTML = `<tr><td class="quick-table-no-results" colspan="${3 + maxRanks}">Nessun campione corrisponde alla ricerca.</td></tr>`;
+      body.innerHTML = `<tr><td class="quick-table-no-results" colspan="${3 + maxRanks}">No champion matches the search.</td></tr>`;
       return;
     }
 
     body.innerHTML = matrix.rows.map((row) => {
       const cells = Array.from({ length: maxRanks }, (_, index) => quickCounterCell(row.counters[index], index + 1, row.target)).join('');
-      return `<tr><th scope="row"><strong>${champHtml(row.target, 'xs')}</strong></th><td class="quick-number">${integer(row.targetGames)}</td><td>${row.inPool ? '<span class="quick-pool-badge">Nella pool</span>' : '<span class="quick-out-badge">Avversario</span>'}</td>${cells}</tr>`;
+      return `<tr><th scope="row"><strong>${champHtml(row.target, 'xs')}</strong></th><td class="quick-number">${integer(row.targetGames)}</td><td>${row.inPool ? '<span class="quick-pool-badge">In pool</span>' : '<span class="quick-out-badge">Opponent</span>'}</td>${cells}</tr>`;
     }).join('');
   }
 
@@ -1592,13 +1592,13 @@
     const search = byId('quickSearchInput');
     if (search) search.value = '';
     if (parsed.unknown.length) {
-      setQuickValidation(`Tabella generata. Campioni ignorati perché non trovati in ${roleLabel(parsed.role)}: ${parsed.unknown.join(', ')}.`, 'warning');
+      setQuickValidation(`Table generated. Champions ignored because they were not found in ${roleLabel(parsed.role)}: ${parsed.unknown.join(', ')}.`, 'warning');
     } else {
-      setQuickValidation(`Riconosciuti ${parsed.pool.length} campioni in ${roleLabel(parsed.role)}.`, 'success');
+      setQuickValidation(`Recognized ${parsed.pool.length} champions in ${roleLabel(parsed.role)}.`, 'success');
     }
     renderQuickCounterTable();
     byId('quickCounterResults')?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
-    announce(`Tabella counter generata per ${roleLabel(parsed.role)} con ${parsed.pool.length} campioni.`);
+    announce(`Counter table generated for ${roleLabel(parsed.role)} con ${parsed.pool.length} champions.`);
   }
 
   function csvCell(value) {
@@ -1611,13 +1611,13 @@
     if (!matrix?.rows?.length) return;
     const maxRanks = Math.max(1, state.quickPool.length);
     const metric = POOL_COUNTER_METRICS[state.quickMetric] || POOL_COUNTER_METRICS.wilson;
-    const headers = ['Campione ruolo', 'Partite ruolo', 'Nella pool'];
+    const headers = ['Role champion', 'Role matches', 'In pool'];
     for (let rank = 1; rank <= maxRanks; rank += 1) {
-      headers.push(`#${rank} counter`, `#${rank} ${metric.label}`, `#${rank} WR`, `#${rank} WR diff`, `#${rank} partite`);
+      headers.push(`#${rank} counter`, `#${rank} ${metric.label}`, `#${rank} WR`, `#${rank} WR diff`, `#${rank} matches`);
     }
 
     const rows = matrix.rows.map((row) => {
-      const values = [row.target, Math.round(row.targetGames || 0), row.inPool ? 'Sì' : 'No'];
+      const values = [row.target, Math.round(row.targetGames || 0), row.inPool ? 'Yes' : 'No'];
       for (let index = 0; index < maxRanks; index += 1) {
         const answer = row.counters[index];
         if (!answer) {
@@ -1647,7 +1647,7 @@
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    announce(`Tabella CSV scaricata con ${matrix.rows.length} righe.`);
+    announce(`CSV table downloaded with ${matrix.rows.length} rows.`);
   }
 
   function clearQuickCounter() {
@@ -1665,15 +1665,15 @@
 
   function snowballTierLabel(value) {
     const number = safeNumber(value);
-    if (number === null) return 'dato parziale';
-    if (number >= 0.25) return 'esplosiva';
-    if (number >= 0.16) return 'alta';
-    if (number >= 0.08) return 'media';
-    return 'bassa';
+    if (number === null) return 'partial data';
+    if (number >= 0.25) return 'explosive';
+    if (number >= 0.16) return 'high';
+    if (number >= 0.08) return 'medium';
+    return 'low';
   }
 
   function banCoverageLabel(row) {
-    return row.hasSafeAnswer ? 'Coperto' : 'Non coperto';
+    return row.hasSafeAnswer ? 'Covered' : 'Not covered';
   }
 
   function banCoverageClass(row) {
@@ -1708,8 +1708,8 @@
       scopeSelect.value = state.banScope;
       const q50Option = scopeSelect.querySelector('option[value="q50"]');
       const allOption = scopeSelect.querySelector('option[value="all"]');
-      if (q50Option) q50Option.textContent = `Q50 · ${result.q50Count} campioni`;
-      if (allOption) allOption.textContent = `Tutti · ${result.allCount} campioni`;
+      if (q50Option) q50Option.textContent = `Q50 · ${result.q50Count} champions`;
+      if (allOption) allOption.textContent = `All · ${result.allCount} champions`;
     }
     if (limitSelect) {
       if (!limitSelect.querySelector(`option[value="${state.banLimit}"]`)) {
@@ -1722,18 +1722,18 @@
     }
 
     const scopeText = state.banScope === 'all'
-      ? `tutti i ${result.allCount} campioni disponibili`
-      : `i ${result.q50Count} campioni Q50 con almeno ${integer(result.q50Threshold)} partite`;
+      ? `all ${result.allCount} available champions`
+      : `i ${result.q50Count} Q50 champions with at least ${integer(result.q50Threshold)} matches`;
     const poolText = result.pool.join(' / ');
     const exclusionCopy = result.excludedFavorableSensitiveCount > 0
-      ? ` ${integer(result.excludedFavorableSensitiveCount)} candidati esclusi perché il loro matchup più sensibile resta favorevole alla pool sia per WR sia per WR diff.`
+      ? ` ${integer(result.excludedFavorableSensitiveCount)} candidates excluded because their most sensitive matchup still favors the pool in both WR and WR difference.`
       : '';
-    byId('banRecommendationSummary').innerHTML = `<strong>${esc(roleLabel(state.role))} · ${esc(poolText)}:</strong> confronto ${esc(scopeText)}. I risultati sono ordinati in modo strettamente decrescente per indice ban finale; WR/Δ, popolarità e snowball contribuiscono al valore secondo i pesi configurati.${esc(exclusionCopy)}`;
+    byId('banRecommendationSummary').innerHTML = `<strong>${esc(roleLabel(state.role))} · ${esc(poolText)}:</strong> comparison ${esc(scopeText)}. Results are sorted in strictly descending order by final ban index; WR/Δ, popularity, and snowballing contribute to the value according to the configured weights.${esc(exclusionCopy)}`;
     byId('banResultCount').textContent = `${result.rows.length} ban`;
 
     const list = byId('banRecommendationRows');
     if (!result.rows.length) {
-      list.innerHTML = '<div class="counter-empty">Nessun candidato rimasto: i matchup disponibili sono insufficienti oppure il confronto più sensibile è comunque favorevole alla pool per WR e WR diff.</div>';
+      list.innerHTML = '<div class="counter-empty">No candidates remain: the available matchups are insufficient, or the most sensitive matchup still favors the pool in both WR and WR difference.</div>';
       panel.hidden = false;
       return;
     }
@@ -1745,11 +1745,11 @@
         ? `./visual.html?role=${encodeURIComponent(state.role)}&a=${encodeURIComponent(worst.playerChampion)}&b=${encodeURIComponent(row.candidate)}`
         : null;
       const bestCopy = best
-        ? `Miglior risposta: ${best.playerChampion} · WR avversario ${pct(best.winrate, 1)}`
-        : 'Nessuna risposta della pool con dati diretti';
+        ? `Best answer: ${best.playerChampion} · opponent WR ${pct(best.winrate, 1)}`
+        : 'No pool answer with direct data';
       const worstCopy = worst
-        ? `Più esposto: ${worst.playerChampion} · WR ${pct(worst.winrate, 1)} · Δ ${signedPct(worst.diff, 1)}`
-        : 'Matchup peggiore non disponibile';
+        ? `Most exposed: ${worst.playerChampion} · WR ${pct(worst.winrate, 1)} · Δ ${signedPct(worst.diff, 1)}`
+        : 'Worst matchup unavailable';
       const snowCopy = row.aggregateSnowball === null
         ? 'Snowball N/D'
         : `Snowball ${pct(row.aggregateSnowball, 1)} · ${snowballTierLabel(row.aggregateSnowball)}`;
@@ -1757,17 +1757,17 @@
         <article class="ban-card ${banToneClass(row)}">
           <div class="ban-rank">#${index + 1}</div>
           <div class="ban-card-main">
-            <div><h3>${champHtml(row.candidate, 'md')}</h3><p>${integer(row.candidateGames)} partite nel ruolo · ${row.knownCount}/${row.totalCount} matchup noti</p></div>
-            <div class="ban-score"><strong>${scoreFmt(row.score)}</strong><span>indice ban</span></div>
+            <div><h3>${champHtml(row.candidate, 'md')}</h3><p>${integer(row.candidateGames)} matches in the role · ${row.knownCount}/${row.totalCount} known matchups</p></div>
+            <div class="ban-score"><strong>${scoreFmt(row.score)}</strong><span>ban index</span></div>
           </div>
           <div class="ban-label ${banCoverageClass(row)}">${esc(banCoverageLabel(row))}</div>
           <div class="ban-metrics">
-            <div><span>Minaccia WR/Δ</span><strong>${scoreFmt(row.matchupThreat)}</strong><small>WR medio ${pct(row.averageEnemyWinrate, 1)} · Δ ${signedPct(row.averageEnemyDiff, 1)} · ${integer(row.totalDirectGames)} partite dirette</small></div>
-            <div><span>Popolarità</span><strong>${scoreFmt(row.popularity)}</strong><small>${integer(row.candidateGames)} partite totali</small></div>
+            <div><span>WR/Δ threat</span><strong>${scoreFmt(row.matchupThreat)}</strong><small>average WR ${pct(row.averageEnemyWinrate, 1)} · Δ ${signedPct(row.averageEnemyDiff, 1)} · ${integer(row.totalDirectGames)} direct matches</small></div>
+            <div><span>Popularity</span><strong>${scoreFmt(row.popularity)}</strong><small>${integer(row.candidateGames)} total matches</small></div>
             <div><span>Snowball</span><strong>${scoreFmt(row.snowball)}</strong><small>${esc(snowCopy)}</small></div>
           </div>
           <div class="ban-detail"><span>${esc(bestCopy)}</span><span>${esc(worstCopy)}</span></div>
-          ${deepLink ? `<a class="ban-matchup-link" href="${esc(deepLink)}">Apri il matchup più critico</a>` : ''}
+          ${deepLink ? `<a class="ban-matchup-link" href="${esc(deepLink)}">Open the most critical matchup</a>` : ''}
         </article>`;
       return content;
     }).join('');
@@ -1800,8 +1800,8 @@
       scopeSelect.value = state.counterScope;
       const q50Option = scopeSelect.querySelector('option[value="q50"]');
       const allOption = scopeSelect.querySelector('option[value="all"]');
-      if (q50Option) q50Option.textContent = `Q50 · ${matrix.q50Count} campioni`;
-      if (allOption) allOption.textContent = `Tutti · ${matrix.allCount} campioni`;
+      if (q50Option) q50Option.textContent = `Q50 · ${matrix.q50Count} champions`;
+      if (allOption) allOption.textContent = `All · ${matrix.allCount} champions`;
     }
     if (metricSelect) metricSelect.value = state.counterMetric;
     if (confidenceSelect) confidenceSelect.value = String(state.counterConfidence);
@@ -1809,17 +1809,17 @@
     if (searchInput && searchInput.value !== state.counterQuery) searchInput.value = state.counterQuery;
 
     const scopeText = state.counterScope === 'all'
-      ? `tutti i ${matrix.allCount} campioni disponibili nel ruolo`
-      : `i ${matrix.q50Count} campioni Q50 con almeno ${integer(matrix.q50Threshold)} partite nel ruolo`;
-    byId('counterCoverageSummary').innerHTML = `<strong>${esc(roleLabel(state.role))}:</strong> analizzo ${esc(scopeText)}. Per ogni avversario ordino i campioni della pool con <strong>${esc(metric.label)}</strong>. Il campione della riga, quando è già nella pool, non può counterare sé stesso.`;
+      ? `all ${matrix.allCount} champions available in the role`
+      : `i ${matrix.q50Count} Q50 champions with at least ${integer(matrix.q50Threshold)} matches in the role`;
+    byId('counterCoverageSummary').innerHTML = `<strong>${esc(roleLabel(state.role))}:</strong> analyzing ${esc(scopeText)}. For each opponent, the pool champions are ranked by <strong>${esc(metric.label)}</strong>. When the champion in the row is already in the pool, it cannot counter itself.`;
     byId('counterMetricNote').textContent = state.counterMetric === 'wilson'
-      ? `${metric.description} Livello di prudenza selezionato: ${state.counterConfidence}%.`
+      ? `${metric.description} Selected confidence level: ${state.counterConfidence}%.`
       : metric.description;
-    byId('counterResultCount').textContent = `${matrix.rows.length} ${matrix.rows.length === 1 ? 'campione' : 'campioni'}`;
+    byId('counterResultCount').textContent = `${matrix.rows.length} ${matrix.rows.length === 1 ? 'champion' : 'champions'}`;
 
     const list = byId('counterCoverageRows');
     if (!matrix.rows.length) {
-      list.innerHTML = '<div class="counter-empty">Nessun campione corrisponde al filtro di ricerca.</div>';
+      list.innerHTML = '<div class="counter-empty">No champion matches the search filter.</div>';
       panel.hidden = false;
       return;
     }
@@ -1828,16 +1828,16 @@
       const answers = row.counters.length ? row.counters.map((answer, index) => {
         const rank = index + 1;
         if (!answer.hasData) {
-          return `<div class="pool-counter-answer unavailable"><span class="counter-answer-rank">#${rank}</span><strong>${champHtml(answer.champion, 'xs')}</strong><span class="counter-answer-primary">N/D</span><small>Matchup non presente nel dataset</small></div>`;
+          return `<div class="pool-counter-answer unavailable"><span class="counter-answer-rank">#${rank}</span><strong>${champHtml(answer.champion, 'xs')}</strong><span class="counter-answer-primary">N/A</span><small>Matchup not present in the dataset</small></div>`;
         }
         const deepLink = `./visual.html?role=${encodeURIComponent(state.role)}&a=${encodeURIComponent(answer.champion)}&b=${encodeURIComponent(row.target)}`;
         const metricValue = poolCounterMetricFormat(answer, state.counterMetric);
-        const meta = `WR ${pct(answer.winrate, 1)} · Δ ${signedPct(answer.diff, 1)} · ${integer(answer.games)} partite`;
-        return `<a class="pool-counter-answer" href="${esc(deepLink)}" title="Apri ${esc(answer.champion)} contro ${esc(row.target)} nel Matchup Lab"><span class="counter-answer-rank">#${rank}</span><strong>${champHtml(answer.champion, 'xs')}</strong><span class="counter-answer-primary">${esc(metricValue)}</span><small>${esc(meta)}</small></a>`;
-      }).join('') : '<div class="counter-no-answer">Nessun altro campione della pool può essere confrontato con questa riga.</div>';
+        const meta = `WR ${pct(answer.winrate, 1)} · Δ ${signedPct(answer.diff, 1)} · ${integer(answer.games)} matches`;
+        return `<a class="pool-counter-answer" href="${esc(deepLink)}" title="Open ${esc(answer.champion)} against ${esc(row.target)} in Matchup Lab"><span class="counter-answer-rank">#${rank}</span><strong>${champHtml(answer.champion, 'xs')}</strong><span class="counter-answer-primary">${esc(metricValue)}</span><small>${esc(meta)}</small></a>`;
+      }).join('') : '<div class="counter-no-answer">No other champion in the pool can be compared with this row.</div>';
 
-      const poolBadge = row.inPool ? '<span class="counter-badge in-pool">Nella pool</span>' : '';
-      return `<article class="pool-counter-target"><div class="counter-target-head"><div><h3>${champHtml(row.target, 'sm')}</h3><p>${integer(row.targetGames)} partite nel ruolo</p></div>${poolBadge}</div><div class="counter-answer-list">${answers}</div></article>`;
+      const poolBadge = row.inPool ? '<span class="counter-badge in-pool">In pool</span>' : '';
+      return `<article class="pool-counter-target"><div class="counter-target-head"><div><h3>${champHtml(row.target, 'sm')}</h3><p>${integer(row.targetGames)} matches in the role</p></div>${poolBadge}</div><div class="counter-answer-list">${answers}</div></article>`;
     }).join('');
     panel.hidden = false;
   }
@@ -1851,18 +1851,18 @@
     const evaluation = evaluatePool(state.selected);
     const weights = weightPercentages(CONFIG?.poolEvaluation?.weights || {});
     const fields = [
-      ['Copertura matchup', evaluation.matchupCoverage, weights.matchupCoverage],
-      ['Controllo debolezze', evaluation.weaknessControl, weights.weaknessControl],
-      ['Forza generale', evaluation.averageChampionStrength, weights.averageChampionStrength],
-      ['Varietà danno', evaluation.damageVariety, weights.damageVariety],
-      ['Diversità profili', evaluation.profileDiversity, weights.profileDiversity],
-      ['Affidabilità dati', evaluation.dataConfidence, weights.dataConfidence]
+      ['Matchup coverage', evaluation.matchupCoverage, weights.matchupCoverage],
+      ['Weakness control', evaluation.weaknessControl, weights.weaknessControl],
+      ['Overall strength', evaluation.averageChampionStrength, weights.averageChampionStrength],
+      ['Damage variety', evaluation.damageVariety, weights.damageVariety],
+      ['Profile diversity', evaluation.profileDiversity, weights.profileDiversity],
+      ['Data reliability', evaluation.dataConfidence, weights.dataConfidence]
     ];
     const copyText = `${roleLabel(state.role).toUpperCase()} — ${state.selected.join(' / ')}`;
     byId('finalContent').innerHTML = `
-      <div class="final-hero"><div class="final-score">${scoreFmt(evaluation.finalScore)}</div><div><div class="micro-label">Valutazione statistica finale</div><h2>${esc(finalLabel(evaluation.finalScore))}</h2><p>Il punteggio descrive la completezza statistica della pool, non la padronanza personale. I pesi mostrati qui provengono direttamente da <code>pool.config.js</code>.</p></div></div>
+      <div class="final-hero"><div class="final-score">${scoreFmt(evaluation.finalScore)}</div><div><div class="micro-label">Final statistical evaluation</div><h2>${esc(finalLabel(evaluation.finalScore))}</h2><p>The score describes the statistical completeness of the pool, not personal mastery. The weights shown here come directly from <code>pool.config.js</code>.</p></div></div>
       <div class="breakdown">${fields.map(([label, value, weight]) => `<div class="metric"><div class="metric-top"><span>${esc(label)}</span><strong>${scoreFmt(value)} · ${Math.round(weight || 0)}%</strong></div><div class="bar"><span style="width:${clamp(value, 0, 100)}%"></span></div></div>`).join('')}</div>
-      <div class="copy-box"><textarea id="copyOutput" readonly>${esc(copyText)}</textarea><button id="copyBtn" class="secondary" type="button">Copia la pool</button></div>`;
+      <div class="copy-box"><textarea id="copyOutput" readonly>${esc(copyText)}</textarea><button id="copyBtn" class="secondary" type="button">Copy the pool</button></div>`;
     panel.hidden = false;
     byId('copyBtn').addEventListener('click', copyPool);
   }
@@ -1890,7 +1890,7 @@
     state.customChampion = null;
     byId('customChampion').value = '';
     renderWorkspace();
-    announce(`${champion} aggiunto. ${state.selected.length} campioni su ${state.size}.`);
+    announce(`${champion} added. ${state.selected.length} champions out of ${state.size}.`);
     if (state.selected.length >= state.size) {
       const smooth = CONFIG?.ui?.smoothScroll !== false && !prefersReducedMotion();
       byId('finalPanel').scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
@@ -1901,7 +1901,7 @@
     if (state.selected.length <= 1 || index < 0 || index >= state.selected.length) return;
     const [removed] = state.selected.splice(index, 1);
     renderWorkspace();
-    announce(`${removed} rimosso dalla pool.`);
+    announce(`${removed} removed from the pool.`);
   }
 
   function startBuilder() {
@@ -1912,7 +1912,7 @@
     if (typed && !state.firstChampion && !exact) {
       if (validation) validation.hidden = false;
       byId('firstChampion').focus();
-      announce('Seleziona un campione valido dall’elenco oppure lascia il campo vuoto.');
+      announce('Select a valid champion from the list or leave the field empty.');
       return;
     }
     if (validation) validation.hidden = true;
@@ -1923,7 +1923,7 @@
     state.customChampion = null;
     renderWorkspace();
     const automatic = !state.firstChampion && !exact;
-    announce(`${first} selezionato come primo campione${automatic ? ' automaticamente' : ''}.`);
+    announce(`${first} selected as the first champion${automatic ? ' automatically' : ''}.`);
   }
 
   function resetBuilder() {
@@ -1934,7 +1934,7 @@
     state.banRows = [];
     byId('customChampion').value = '';
     renderWorkspace();
-    announce('Pool Builder azzerato.');
+    announce('Pool Builder reset.');
   }
 
   async function copyPool() {
@@ -1950,10 +1950,10 @@
     }
     const button = byId('copyBtn');
     if (button) {
-      button.textContent = 'Copiata';
-      window.setTimeout(() => { button.textContent = 'Copia la pool'; }, 1300);
+      button.textContent = 'Copied';
+      window.setTimeout(() => { button.textContent = 'Copy the pool'; }, 1300);
     }
-    announce('Champion pool copiata negli appunti.');
+    announce('Champion pool copied to the clipboard.');
   }
 
   function validateConfiguration() {
@@ -1972,14 +1972,14 @@
     ];
     weightGroups.forEach(([name, weights]) => {
       const total = Object.values(weights || {}).reduce((sum, value) => sum + Math.max(0, safeNumber(value) ?? 0), 0);
-      if (total <= 0) warnings.push(`${name}: inserisci almeno un peso maggiore di zero.`);
+      if (total <= 0) warnings.push(`${name}: enter at least one weight greater than zero.`);
     });
     const quantile = safeNumber(CONFIG?.dataSelection?.rigorousQuantile);
-    if (quantile === null || quantile < 0 || quantile > 1) warnings.push('dataSelection.rigorousQuantile deve essere compreso tra 0 e 1.');
+    if (quantile === null || quantile < 0 || quantile > 1) warnings.push('dataSelection.rigorousQuantile must be between 0 and 1.');
     const floor = safeNumber(CONFIG?.championStrength?.winrateFloor);
     const ceiling = safeNumber(CONFIG?.championStrength?.winrateCeiling);
-    if (floor === null || ceiling === null || ceiling <= floor) warnings.push('championStrength.winrateCeiling deve essere maggiore di winrateFloor.');
-    if (!['all', 'rigorous', 'blend'].includes(CONFIG?.dataSelection?.evaluationOpponents)) warnings.push("dataSelection.evaluationOpponents deve essere 'all', 'rigorous' oppure 'blend'.");
+    if (floor === null || ceiling === null || ceiling <= floor) warnings.push('championStrength.winrateCeiling must be greater than winrateFloor.');
+    if (!['all', 'rigorous', 'blend'].includes(CONFIG?.dataSelection?.evaluationOpponents)) warnings.push("dataSelection.evaluationOpponents must be 'all', 'rigorous', or 'blend'.");
     warnings.forEach((warning) => console.warn(`[Pool Builder config] ${warning}`));
     return warnings;
   }
@@ -1996,9 +1996,9 @@
       const matchupTotal = (weights.matchupCoverage || 0) + (weights.weaknessControl || 0);
       const compositionTotal = (weights.averageChampionStrength || 0) + (weights.damageVariety || 0) + (weights.profileDiversity || 0);
       strip.innerHTML = `
-        <div class="pool-method-item"><span>${Math.round(matchupTotal)}%</span><strong>Matchup e debolezze</strong></div>
-        <div class="pool-method-item"><span>${Math.round(compositionTotal)}%</span><strong>Forza e composizione</strong></div>
-        <div class="pool-method-item"><span>${Math.round(weights.dataConfidence || 0)}%</span><strong>Affidabilità dati</strong></div>`;
+        <div class="pool-method-item"><span>${Math.round(matchupTotal)}%</span><strong>Matchups and weaknesses</strong></div>
+        <div class="pool-method-item"><span>${Math.round(compositionTotal)}%</span><strong>Strength and composition</strong></div>
+        <div class="pool-method-item"><span>${Math.round(weights.dataConfidence || 0)}%</span><strong>Data reliability</strong></div>`;
     }
   }
 
@@ -2076,28 +2076,28 @@
     byId('banScopeSelect').addEventListener('change', (event) => {
       state.banScope = event.target.value === 'all' ? 'all' : 'q50';
       renderBanRecommendations();
-      announce(`Consigli ban aggiornati: ${state.banScope === 'all' ? 'tutti i campioni' : 'campioni Q50'}.`);
+      announce(`Ban recommendations updated: ${state.banScope === 'all' ? 'all champions' : 'Q50 champions'}.`);
     });
     byId('banLimitSelect').addEventListener('change', (event) => {
       state.banLimit = Math.max(1, Math.min(30, Number(event.target.value) || BAN_RECOMMENDATION_LIMIT));
       renderBanRecommendations();
-      announce(`Mostro ${state.banLimit} consigli ban.`);
+      announce(`Showing ${state.banLimit} ban recommendations.`);
     });
     byId('counterScopeSelect').addEventListener('change', (event) => {
       state.counterScope = event.target.value === 'all' ? 'all' : 'q50';
       renderCounterCoverage();
-      announce(`Copertura counter aggiornata: ${state.counterScope === 'all' ? 'tutti i campioni' : 'campioni Q50'}.`);
+      announce(`Counter coverage updated: ${state.counterScope === 'all' ? 'all champions' : 'Q50 champions'}.`);
     });
     byId('counterMetricSelect').addEventListener('change', (event) => {
       state.counterMetric = POOL_COUNTER_METRICS[event.target.value] ? event.target.value : 'wilson';
       renderCounterCoverage();
-      announce(`Ordinamento counter aggiornato: ${POOL_COUNTER_METRICS[state.counterMetric].label}.`);
+      announce(`Counter sorting updated: ${POOL_COUNTER_METRICS[state.counterMetric].label}.`);
     });
     byId('counterConfidenceSelect').addEventListener('change', (event) => {
       const confidence = Number(event.target.value);
       state.counterConfidence = Object.prototype.hasOwnProperty.call(WILSON_Z, confidence) ? confidence : DEFAULT_POOL_COUNTER_CONFIDENCE;
       renderCounterCoverage();
-      announce(`Prudenza Wilson impostata al ${state.counterConfidence}%.`);
+      announce(`Wilson confidence set to ${state.counterConfidence}%.`);
     });
     byId('counterSearchInput').addEventListener('input', (event) => {
       state.counterQuery = event.target.value;
@@ -2117,13 +2117,13 @@
 
   function init() {
     if (!CONFIG) {
-      setDataStatus('error', 'Config assente');
-      byId('emptyState').innerHTML = '<div class="pool-empty-monogram">!</div><h3>Configurazione non disponibile</h3><p>Carica <code>pool.config.js</code> prima di <code>pool.js</code>.</p>';
+      setDataStatus('error', 'Config missing');
+      byId('emptyState').innerHTML = '<div class="pool-empty-monogram">!</div><h3>Configuration unavailable</h3><p>Load <code>pool.config.js</code> before <code>pool.js</code>.</p>';
       return;
     }
     if (!DATA || !DATA.matchups || !Array.isArray(DATA.matchupColumns) || !DATA.championProfiles) {
-      setDataStatus('error', 'Dataset assente');
-      byId('emptyState').innerHTML = '<div class="pool-empty-monogram">!</div><h3>Dataset non disponibile</h3><p>Inserisci <code>matchup_data.js</code> nella stessa cartella e caricalo prima di <code>pool.js</code>.</p>';
+      setDataStatus('error', 'Dataset missing');
+      byId('emptyState').innerHTML = '<div class="pool-empty-monogram">!</div><h3>Dataset unavailable</h3><p>Place <code>matchup_data.js</code> in the same folder and load it before <code>pool.js</code>.</p>';
       return;
     }
     validateConfiguration();
@@ -2138,7 +2138,7 @@
     if (defaultRole) setRole(defaultRole);
     bindEvents();
     exposeDebugApi();
-    setDataStatus('ready', `Dataset printo`);
+    setDataStatus('ready', `Dataset ready`);
     updateStartButton();
   }
 

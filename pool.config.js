@@ -1,114 +1,114 @@
 /*
- * POOL BUILDER — CONFIGURAZIONE DELLA LOGICA
+ * POOL BUILDER — LOGIC CONFIGURATION
  * ================================================================
- * QUESTO È IL FILE DA MODIFICARE per cambiare pesi, soglie e regole.
+ * THIS IS THE FILE TO EDIT to change weights, thresholds, and rules.
  *
- * Regola importante: i pesi NON devono per forza sommare a 100.
- * Il motore li normalizza automaticamente. Puoi quindi usare numeri
- * intuitivi come 50 / 20 / 15 / 10 / 5.
+ * Important rule: the weights do NOT have to add up to 100.
+ * The engine normalizes them automatically. You can therefore use
+ * intuitive values such as 50 / 20 / 15 / 10 / 5.
  */
 window.POOL_BUILDER_CONFIG = {
   version: '2.2.0',
 
-  /* 1. QUALI CAMPIONI ENTRANO NELLE ANALISI ---------------------- */
+  /* 1. WHICH CHAMPIONS ARE INCLUDED IN THE ANALYSIS ---------------------- */
   dataSelection: {
-    // 0.75 = Q75: il 25% dei campioni con più partite forma il gruppo Rigoroso.
+    // 0.75 = Q75: the 25% of champions with the most matches form the Rigorous group.
     rigorousQuantile: 0.75,
 
-    // 'all' = valuta la copertura contro tutta la lane.
-    // 'rigorous' = valuta soltanto contro il gruppo Rigoroso.
-    // 'blend' = miscela le due popolazioni secondo rigorousBlendWeight.
-    // NB: 'blend' richiede supporto lato motore — se il motore non lo
-    // implementa ancora, questo campo va trattato come 'rigorous'.
+    // 'all' = evaluates coverage against the entire lane.
+    // 'rigorous' = evaluates only against the Rigorous group.
+    // 'blend' = mixes the two populations according to rigorousBlendWeight.
+    // NOTE: 'blend' requires engine-side support — if the engine does not
+    // implement it yet, this field must be treated as 'rigorous'.
     evaluationOpponents: 'blend',
 
-    // Peso del gruppo Rigoroso nel blend (0 = solo 'all', 1 = solo 'rigorous').
-    // 0.6 = leggero sbilanciamento verso i dati più affidabili, pur
-    // mantenendo un contributo sostanziale da tutta la lane.
+    // Weight of the Rigorous group in the blend (0 = 'all' only, 1 = 'rigorous' only).
+    // 0.6 = slight bias toward the more reliable data, while
+    // retaining a substantial contribution from the entire lane.
     rigorousBlendWeight: 0.6,
 
-    // 'rigorous-first' = consiglia prima i campioni Rigorosi e usa gli altri
-    // soltanto per completare la lista. 'all' = tratta tutti allo stesso modo.
+    // 'rigorous-first' = recommends Rigorous champions first and uses the others
+    // only to complete the list. 'all' = treats everyone equally.
     recommendationCandidates: 'rigorous-first'
   },
 
-  /* 2. PUNTEGGIO DI UN SINGOLO MATCHUP --------------------------- */
+  /* 2. SINGLE MATCHUP SCORE --------------------------- */
   matchup: {
     neutralWinrate: 0.50,
 
     // Formula base del matchup:
-    // - directWinrate: WR effettivo nel confronto diretto;
-    // - relativeToGeneral: rendimento nel matchup rispetto al WR generale.
+    // - directWinrate: actual WR in the direct matchup;
+    // - relativeToGeneral: performance in the matchup relative to overall WR.
     rawScoreWeights: {
       directWinrate: 70,
       relativeToGeneral: 30
     },
 
-    // Più è alto, più i matchup con poche partite vengono avvicinati al 50%.
-    // 0 disattiva lo shrinkage statistico.
+    // The higher it is, the more matchups with few matches are pulled toward 50%.
+    // 0 disables statistical shrinkage.
     shrinkageGames: 20,
 
-    // Peso delle partite nelle medie: 1 = lineare, 0.5 = radice quadrata,
-    // 0 = ogni matchup pesa uguale. 0.5 evita che i matchup più popolari
-    // cancellino completamente le debolezze più rare.
+    // Match weighting in averages: 1 = linear, 0.5 = square root,
+    // 0 = every matchup has equal weight. 0.5 prevents the most popular matchups
+    // from completely erasing rarer weaknesses.
     evidenceWeightExponent: 0.5,
 
-    // NUOVO: quanto conta la probabilità reale di incontrare un avversario
-    // (basata su quante partite totali ha giocato in quella lane) quando si
-    // calcola copertura e debolezze. 0 = ignora la popolarità, ogni avversario
-    // pesa uguale. 1 = peso lineare sulla popolarità. 0.6 è una via di mezzo:
-    // gli avversari comuni contano più di quelli rarissimi, ma un hard-counter
-    // raro non sparisce del tutto dal calcolo.
+    // NEW: how much the actual probability of encountering an opponent matters
+    // (based on how many total matches they have played in that lane) when
+    // calculating coverage and weaknesses. 0 = ignores popularity; every opponent
+    // has equal weight. 1 = linear popularity weighting. 0.6 is a middle ground:
+    // common opponents matter more than extremely rare ones, but a rare hard counter
+    // does not disappear entirely from the calculation.
     opponentLikelihoodExponent: 0.6,
 
-    // Copertura finale dei matchup: combina media pesata, media per avversario
-    // e coda peggiore. I pesi vengono normalizzati automaticamente.
+    // Final matchup coverage: combines the weighted average, opponent-balanced average,
+    // and worst tail. The weights are normalized automatically.
     coverageBlendWeights: {
       evidenceWeighted: 50,
       opponentBalanced: 25,
       worstTail: 25
     },
 
-    // Controllo debolezze: a differenza della copertura (che riflette il
-    // valore atteso su tante partite, prospettiva analista), qui domina la
-    // coda peggiore. Filosofia: un avversario razionale in draft trova e
-    // sfrutta il tuo punto debole anche se è raro nello storico — un
-    // proplayer/teorico dei giochi non si fida della media per questo scopo.
+    // Weakness control: unlike coverage (which reflects the
+    // expected value over many matches, from an analyst's perspective), the
+    // worst tail dominates here. Philosophy: a rational opponent in draft will find and
+    // exploit your weak point even if it is rare in the historical data — a
+    // pro player/game theorist does not trust the average for this purpose.
     weaknessBlendWeights: {
       evidenceWeighted: 40,
       worstTail: 60
     },
 
-    // 0.15 = considera come "coda peggiore" il 15% dei matchup noti.
-    // Ristretto apposta: ora che weaknessBlendWeights dà priorità alla coda
-    // (vedi sopra), vogliamo che catturi le vere minacce, non anche i
-    // matchup mediocri-ma-non-drammatici.
+    // 0.15 = treats 15% of known matchups as the "worst tail."
+    // Deliberately narrow: now that weaknessBlendWeights prioritizes the tail
+    // (see above), we want it to capture the real threats, not also
+    // mediocre-but-not-disastrous matchups.
     worstTailShare: 0.15,
 
-    // Soglie usate nelle spiegazioni delle raccomandazioni.
+    // Thresholds used in recommendation explanations.
     improvementMinDelta: 0.005,
     weakBelow: 0.48,
     fixedAbove: 0.52
   },
 
-  /* 3. FORZA INDIVIDUALE DEL CAMPIONE ---------------------------- */
+  /* 3. INDIVIDUAL CHAMPION STRENGTH ---------------------------- */
   championStrength: {
-    // Il WR viene trasformato linearmente in un punteggio 0–100.
-    // 45% o meno = 0; 55% o più = 100.
+    // WR is transformed linearly into a 0–100 score.
+    // 45% or less = 0; 55% or more = 100.
     winrateFloor: 0.45,
     winrateCeiling: 0.55,
 
-    // Primo pick automatico: equilibrio tra forza e affidabilità.
+    // Automatic first pick: balance between strength and reliability.
     automaticFirstPickWeights: {
       strength: 80,
       confidence: 20
     }
   },
 
-  /* 4. DIVERSITÀ DEL PROFILO ------------------------------------- */
+  /* 4. PROFILE DIVERSITY ------------------------------------- */
   profileDiversity: {
-    // Aggiungi o rimuovi campi per decidere cosa significa "stile diverso".
-    // Il WR generale è volutamente escluso: misura efficacia, non stile.
+    // Add or remove fields to decide what "different style" means.
+    // Overall WR is deliberately excluded: it measures effectiveness, not style.
     fields: [
       'avg_damage_to_champs',
       'avg_time_ccing_others',
@@ -121,14 +121,14 @@ window.POOL_BUILDER_CONFIG = {
     ]
   },
 
-  /* 5. CLASSIFICAZIONE E VARIETÀ DEL DANNO ----------------------- */
+  /* 5. DAMAGE CLASSIFICATION AND VARIETY ----------------------- */
   damage: {
     specialistShareMin: 0.60,
     specialistGapMin: 0.20,
     meaningfulSecondaryShare: 0.35,
     trueDamageRelevantShare: 0.20,
 
-    // Punteggi assegnati alle diverse composizioni di danno.
+    // Scores assigned to the different damage compositions.
     varietyScores: {
       physicalAndMagic: 100,
       physicalMagicAndTrue: 100,
@@ -138,21 +138,21 @@ window.POOL_BUILDER_CONFIG = {
       singleSpecialist: 30
     },
 
-    // Bonus additivo (0-100) applicato quando la pool ha almeno un campione
-    // con danno vero rilevante, sommato al punteggio base di varietà prima
-    // del clamp finale. Il danno vero è raro e difficile da itemizzare
-    // contro: un proplayer lo considera un vantaggio di draft reale.
+    // Additive bonus (0–100) applied when the pool has at least one champion
+    // with meaningful true damage, added to the base variety score before
+    // the final clamp. True damage is rare and difficult to itemize
+    // against: a pro player considers it a real draft advantage.
     trueDamageBonus: 10,
 
-    // Penalità massima quando parte della pool non possiede dati sul danno.
-    // Con tutti i dati mancanti il punteggio resta comunque 0.
+    // Maximum penalty when part of the pool lacks damage data.
+    // With all data missing, the score still remains 0.
     unknownDataMaxPenalty: 0.35
   },
 
-  /* 6. AFFIDABILITÀ STATISTICA ----------------------------------- */
+  /* 6. STATISTICAL RELIABILITY ----------------------------------- */
   confidence: {
-    // Numero di partite dirette necessario per considerare pieno il campione
-    // statistico di un singolo matchup.
+    // Number of direct matches required for the statistical sample
+    // of a single matchup to be considered full.
     matchupSampleTarget: 25,
 
     championWeights: {
@@ -167,7 +167,7 @@ window.POOL_BUILDER_CONFIG = {
     }
   },
 
-  /* 7. RACCOMANDAZIONE DEL PROSSIMO CAMPIONE --------------------- */
+  /* 7. NEXT-CHAMPION RECOMMENDATION --------------------- */
   recommendation: {
     limit: 7,
 
@@ -179,22 +179,22 @@ window.POOL_BUILDER_CONFIG = {
       confidence: 8
     },
 
-    // Come viene costruito il valore di complementarità matchup.
+    // How the matchup-complementarity value is constructed.
     matchupComplementWeights: {
       coverageGain: 60,
       weaknessGain: 40
     },
 
-    // Un guadagno di 0.035 equivale a +3,5 punti percentuali e vale 100
-    // nella componente matchup. Aumentalo per rendere il sistema più severo.
+    // A gain of 0.035 equals +3.5 percentage points and is worth 100
+    // in the matchup component. Increase it to make the system stricter.
     fullMatchupGainAt: 0.035,
 
-    // Aumento della varietà danno (su scala 0–100) necessario per ottenere
-    // 100 nella relativa componente.
+    // Increase in damage variety (on a 0–100 scale) required to obtain
+    // 100 in the corresponding component.
     fullDamageGainAt: 70,
 
-    // 0 = punteggio completamente assoluto; 1 = completamente relativo agli
-    // altri candidati. 0.35 evita voti altissimi quando tutti migliorano poco.
+    // 0 = completely absolute score; 1 = completely relative to the
+    // other candidates. 0.35 avoids very high ratings when everyone improves little.
     relativeRankBlend: 0.35,
 
     diversityHigh: 0.35,
@@ -202,7 +202,7 @@ window.POOL_BUILDER_CONFIG = {
     knownOpponentWarningRatio: 0.60
   },
 
-  /* 8. VALUTAZIONE FINALE DELLA POOL ----------------------------- */
+  /* 8. FINAL POOL EVALUATION ----------------------------- */
   poolEvaluation: {
     weights: {
       matchupCoverage: 48,
@@ -214,77 +214,77 @@ window.POOL_BUILDER_CONFIG = {
     },
 
     labels: [
-      { min: 85, text: 'Pool molto completa' },
-      { min: 70, text: 'Pool solida' },
-      { min: 55, text: 'Pool funzionale con alcune lacune' },
-      { min: 40, text: 'Pool limitata o ridondante' },
-      { min: 0, text: 'Pool fortemente incompleta' }
+      { min: 85, text: 'Highly complete pool' },
+      { min: 70, text: 'Robust pool' },
+      { min: 55, text: 'Functional pool with some gaps' },
+      { min: 40, text: 'Limited or redundant pool' },
+      { min: 0, text: 'Highly incomplete pool' }
     ]
   },
 
-  /* 9. CONSIGLIO BAN --------------------------------------------- */
+  /* 9. BAN RECOMMENDATION ---------------------------------------- */
   banRecommendation: {
-    // Numero massimo di suggerimenti mostrati inizialmente.
+    // Maximum number of suggestions shown initially.
     limit: 10,
 
-    // Il rischio matchup resta la componente dominante. Popolarità e
-    // snowball servono soprattutto a separare minacce con rischio simile.
+    // Matchup risk remains the dominant component. Popularity and
+    // snowballing mainly help separate threats with similar risk.
     weights: {
       matchupThreat: 30,
       popularity: 50,
       snowball: 10
     },
 
-    // Il rischio primario combina WR diretto dell'avversario e rendimento
-    // relativo al suo WR generale nello specifico matchup.
+    // Primary risk combines the opponent's direct WR and performance
+    // relative to their overall WR in the specific matchup.
     matchupWeights: {
       directWinrate: 50,
       relativeToGeneral: 50
     },
 
-    // Con una pool completa conta soprattutto se esiste almeno una risposta
-    // sicura. Media e matchup peggiore mantengono però visibile la pressione
-    // esercitata sul resto della pool.
+    // With a complete pool, what matters most is whether at least one safe
+    // answer exists. The average and worst matchup nevertheless keep the pressure
+    // exerted on the rest of the pool visible.
     poolThreatWeights: {
       noSafeAnswer: 40,
       averagePressure: 20,
       worstExposure: 40
     },
 
-    // Riduce verso il 50% i matchup diretti con poche partite.
+    // Pulls direct matchups with few matches toward 50%.
     shrinkageGames: 40,
 
-    // Trasforma il rischio aggregato in una scala 0-100: 50% è neutro,
-    // 60% o più equivale a minaccia matchup piena.
+    // Converts aggregate risk to a 0–100 scale: 50% is neutral,
+    // 60% or more equals a full matchup threat.
     neutralThreat: 0.50,
     fullThreatAt: 0.60,
 
-    // Popolarità reale del possibile ban nel ruolo. Il percentile evita che
-    // pochi campioni enormemente popolari schiaccino tutti gli altri; la parte
-    // logaritmica conserva la distanza tra campioni molto e poco giocati.
+    // Actual popularity of the potential ban in the role. The percentile prevents
+    // a few enormously popular champions from overwhelming all others; the
+    // logarithmic component preserves the distance between heavily and lightly played champions.
     popularityWeights: {
       percentile: 50,
       logarithmic: 50
     },
 
-    // 25 punti percentuali di sensibilità avanti/indietro valgono 100 nella
-    // componente snowball. Il valore peggiore pesa meno della media orientata
-    // ai matchup in cui l'avversario è già pericoloso.
+    // 25 percentage points of ahead/behind sensitivity are worth 100 in the
+    // snowball component. The worst value weighs less than the risk-oriented average
+    // across matchups where the opponent is already dangerous.
     fullSnowballAt: 0.25,
     snowballWeights: {
       pressureWeightedAverage: 70,
       worstCase: 30
     },
 
-    // Una pool è "Coperta" contro il possibile ban se almeno uno dei suoi
-    // campioni mantiene la minaccia corretta dell'avversario al 55% o meno.
-    // Riducilo per richiedere una risposta più chiaramente favorevole.
+    // A pool is "Covered" against the potential ban if at least one of its
+    // champions keeps the opponent's adjusted threat at 55% or less.
+    // Lower it to require a more clearly favorable answer.
     safeAnswerThreatMax: 0.55,
 
-    // Esclude completamente un possibile ban quando il matchup con la maggiore
-    // sensibilità allo snowball resta comunque favorevole alla pool su entrambi
-    // i segnali: WR diretto dell'avversario <= 50% e WR diff <= 0.
-    // Se uno dei due dati manca, il candidato non viene escluso.
+    // Completely excludes a potential ban when the matchup with the greatest
+    // snowball sensitivity still favors the pool on both
+    // signals: opponent's direct WR <= 50% and WR difference <= 0.
+    // If either value is missing, the candidate is not excluded.
     excludeIfMostSensitiveFavorsPool: true,
     favorableSensitiveMaxWinrate: 0.50,
     favorableSensitiveMaxDiff: 0

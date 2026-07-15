@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rankings Lab — Classifiche e Counter</title>
+<title>Rankings Lab — Rankings and Counters</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -2109,7 +2109,7 @@ html { scroll-padding-top: calc(var(--topbar-height) + var(--space-6)); }
 
 
 
-/* V12 — atlante draft visuale e picker popularity-aware */
+/* V12 — visual draft atlas e picker popularity-aware */
 .topbar-inner { min-height:0 !important; }
 .tabs { z-index:60 !important; background:linear-gradient(180deg,oklch(16.5% .024 240 / .98),oklch(12.5% .020 240 / .98)) !important; }
 .combo-option .meta { max-width:58%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -2500,7 +2500,7 @@ summary::marker { color:var(--champ-a); }
 .threshold-preset{position:relative;appearance:none;display:grid;place-items:center;gap:1px;min-height:46px;padding:6px 4px;border:1px solid var(--line);border-radius:var(--radius-sm);color:var(--ink-dim);background:var(--surface-1);cursor:pointer;font-family:var(--font-mono);transition:border-color var(--duration-fast) var(--ease),background var(--duration-fast) var(--ease),transform var(--duration-fast) var(--ease)}
 .threshold-preset:hover{color:var(--ink);border-color:var(--line-strong);transform:translateY(-1px)}
 .threshold-preset strong{font-size:12px;line-height:1.1}.threshold-preset small{color:var(--ink-faint);font-size:7.5px;font-weight:850;letter-spacing:.06em;text-transform:uppercase}
-/* Etichette più compatte soltanto nella classifica generale. */
+/* More compact labels only in the overall ranking. */
 body.mode-ranking .threshold-preset strong{font-size:9px!important}
 body.mode-ranking .threshold-preset small{font-size:6px!important;line-height:1.05;letter-spacing:.02em}
 .threshold-preset.recommended::after{content:"•";position:absolute;top:3px;right:6px;color:var(--warning);font-size:11px}
@@ -2576,15 +2576,15 @@ body.mode-ranking .threshold-preset small{font-size:6px!important;line-height:1.
   <div class="topbar-inner">
     <div class="brand" aria-label="Matchup Intelligence">
       <div class="brand-mark"><span>RANKINGS</span><em>LAB</em></div>
-      <div class="brand-tag">classifiche e counter</div>
+      <div class="brand-tag">rankings and counters</div>
     </div>
-    <nav class="nav-links" aria-label="Navigazione moduli">
+    <nav class="nav-links" aria-label="Module navigation">
       <a class="nav-link" href="./visual.html">Matchup 1v1</a>
-      <a class="nav-link" href="./tm_data.html">Modalità Team</a>
-      <a class="nav-link active" href="./rankings.html" aria-current="page">Classifiche</a>
+      <a class="nav-link" href="./tm_data.html">Team Mode</a>
+      <a class="nav-link active" href="./rankings.html" aria-current="page">Rankings</a>
       <a class="nav-link" href="./pool.html">Pool Builder</a>
     </nav>
-    <div class="data-status-pill loading" id="dataStatus">Caricamento dati</div>
+    <div class="data-status-pill loading" id="dataStatus">Loading data</div>
   </div>
 </header>
 
@@ -2592,16 +2592,16 @@ body.mode-ranking .threshold-preset small{font-size:6px!important;line-height:1.
   <section class="module-hero rankings-hero" aria-labelledby="pageTitle">
     <div class="hero-card">
       <div>
-        <div class="micro-label hero-kicker">Classifiche del dataset</div>
+        <div class="micro-label hero-kicker">Dataset rankings</div>
         <h1 class="hero-title" id="pageTitle"><span class="word-white">Rankings</span> <span class="word-lab">Lab</span></h1>
-        <p class="hero-copy">Confronta tutti i campioni nello stesso ruolo oppure scegli un bersaglio e scopri quali avversari tendono a contrastarlo meglio nei matchup realmente presenti nel dataset.</p>
+        <p class="hero-copy">Compare all champions in the same role, or choose a target and discover which opponents tend to counter it most effectively in matchups actually present in the dataset.</p>
       </div>
-      <aside class="hero-side" aria-label="Copertura e metodo">
-        <div class="hero-note"><strong>Risultati trasparenti:</strong> i dati sotto soglia restano visibili ma attenuati e chiaramente segnalati. Puoi cambiare la soglia o escluderli dalla vista.</div>
+      <aside class="hero-side" aria-label="Coverage and method">
+        <div class="hero-note"><strong>Transparent results:</strong> below-threshold data remains visible but muted and clearly flagged. You can change the threshold or exclude it from the view.</div>
         <div class="hero-mini-grid three">
           <div class="hero-mini"><span>Matchup</span><strong id="heroDatasetCount">—</strong></div>
-          <div class="hero-mini"><span>Ruoli</span><strong id="heroRoleCount">—</strong></div>
-          <div class="hero-mini"><span>Soglia attiva</span><strong id="heroThreshold">—</strong></div>
+          <div class="hero-mini"><span>Roles</span><strong id="heroRoleCount">—</strong></div>
+          <div class="hero-mini"><span>Active threshold</span><strong id="heroThreshold">—</strong></div>
         </div>
       </aside>
     </div>
@@ -2610,72 +2610,72 @@ body.mode-ranking .threshold-preset small{font-size:6px!important;line-height:1.
   <section class="rankings-console" aria-labelledby="controlsTitle">
     <div class="console-head">
       <div>
-        <div class="micro-label">Imposta la lettura</div>
-        <h2 id="controlsTitle">Classifica generale o ricerca counter</h2>
-        <p>La classifica generale usa i profili aggregati del ruolo; la ricerca counter legge invece ogni matchup dalla prospettiva dell’avversario del campione selezionato.</p>
+        <div class="micro-label">Configure the analysis</div>
+        <h2 id="controlsTitle">Overall ranking or counter search</h2>
+        <p>The overall ranking uses aggregated role profiles; counter search instead reads each matchup from the perspective of the selected champion's opponent.</p>
       </div>
-      <div class="mode-switch" aria-label="Modalità classifica">
-        <button class="mode-btn active" type="button" data-mode="role" aria-pressed="true">Classifica ruolo</button>
-        <button class="mode-btn" type="button" data-mode="counter" aria-pressed="false">Trova counter</button>
+      <div class="mode-switch" aria-label="Ranking mode">
+        <button class="mode-btn active" type="button" data-mode="role" aria-pressed="true">Role ranking</button>
+        <button class="mode-btn" type="button" data-mode="counter" aria-pressed="false">Find counters</button>
       </div>
     </div>
 
-    <nav class="rank-role-pills" id="rolePills" aria-label="Seleziona ruolo"></nav>
+    <nav class="rank-role-pills" id="rolePills" aria-label="Select role"></nav>
 
     <div class="filter-grid">
       <div class="filter-field" id="roleMetricField">
-        <label for="metricSelect">Valore da classificare</label>
+        <label for="metricSelect">Value to rank</label>
         <select class="control-select" id="metricSelect"></select>
       </div>
 
       <div class="filter-field" id="counterChampionField" hidden>
-        <label for="counterChampionInput">Campione da contrastare</label>
+        <label for="counterChampionInput">Champion to counter</label>
         <div class="counter-combobox">
-          <input class="control-input" id="counterChampionInput" type="text" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="counterChampionList" placeholder="Cerca un campione…" autocomplete="off">
+          <input class="control-input" id="counterChampionInput" type="text" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="counterChampionList" placeholder="Search for a champion…" autocomplete="off">
           <div class="counter-list" id="counterChampionList" role="listbox"></div>
         </div>
       </div>
 
       <div class="filter-field" id="counterSortField" hidden>
-        <label for="counterSortSelect">Ordina i counter per</label>
+        <label for="counterSortSelect">Sort counters by</label>
         <select class="control-select" id="counterSortSelect"></select>
       </div>
 
       <div class="threshold-box">
-        <div class="filter-label">Affidabilità minima · <span id="thresholdContext">partite complessive nel ruolo</span></div>
+        <div class="filter-label">Minimum reliability · <span id="thresholdContext">total matches in the role</span></div>
         <div class="threshold-row">
-          <input class="control-input threshold-input" id="thresholdInput" type="number" min="0" step="10" value="100" aria-label="Soglia minima di partite">
-          <div class="threshold-presets" id="thresholdPresets" aria-label="Soglie rapide adattive"></div>
+          <input class="control-input threshold-input" id="thresholdInput" type="number" min="0" step="10" value="100" aria-label="Minimum match threshold">
+          <div class="threshold-presets" id="thresholdPresets" aria-label="Adaptive quick thresholds"></div>
         </div>
         <div class="threshold-preset-meta" id="thresholdPresetMeta"></div>
-        <label class="switch-row"><input id="includeLowSample" type="checkbox" checked> Mostra anche le righe sotto soglia, attenuate</label>
+        <label class="switch-row"><input id="includeLowSample" type="checkbox" checked> Also show below-threshold rows, muted</label>
       </div>
     </div>
 
     <div class="wilson-box" id="wilsonField" hidden>
       <div class="wilson-copy">
-        <div class="filter-label">Intervallo Wilson · livello <strong id="wilsonCurrent">99%</strong></div>
-        <p id="wilsonDescription">Impostazione prudente: penalizza maggiormente i risultati ottenuti su pochi matchup.</p>
+        <div class="filter-label">Wilson interval · level <strong id="wilsonCurrent">99%</strong></div>
+        <p id="wilsonDescription">Conservative setting: more heavily penalizes results obtained from few matchups.</p>
       </div>
-      <div class="wilson-levels" id="wilsonLevels" aria-label="Livello di confidenza Wilson">
-        <button class="wilson-level" type="button" data-confidence="90" aria-pressed="false"><strong>90%</strong><small>Esplorativo</small></button>
-        <button class="wilson-level" type="button" data-confidence="95" aria-pressed="false"><strong>95%</strong><small>Bilanciato</small></button>
-        <button class="wilson-level active" type="button" data-confidence="99" aria-pressed="true"><strong>99%</strong><small>Prudente</small></button>
+      <div class="wilson-levels" id="wilsonLevels" aria-label="Wilson confidence level">
+        <button class="wilson-level" type="button" data-confidence="90" aria-pressed="false"><strong>90%</strong><small>Exploratory</small></button>
+        <button class="wilson-level" type="button" data-confidence="95" aria-pressed="false"><strong>95%</strong><small>Balanced</small></button>
+        <button class="wilson-level active" type="button" data-confidence="99" aria-pressed="true"><strong>99%</strong><small>Conservative</small></button>
       </div>
     </div>
 
     <div class="filter-actions">
-      <div class="search-wrap"><input class="control-input" id="tableSearch" type="search" placeholder="Filtra i risultati per nome…" aria-label="Filtra i risultati per nome"></div>
-      <button class="console-btn" id="resetFiltersBtn" type="button">Ripristina filtri</button>
+      <div class="search-wrap"><input class="control-input" id="tableSearch" type="search" placeholder="Filter results by name…" aria-label="Filter results by name"></div>
+      <button class="console-btn" id="resetFiltersBtn" type="button">Reset filters</button>
     </div>
   </section>
 
   <section class="summary-strip" aria-live="polite">
-    <article class="summary-main"><div class="micro-label">Lettura corrente</div><h2 id="summaryTitle">—</h2><p id="summaryCopy">—</p></article>
-    <article class="summary-stat"><span>Totale</span><strong id="summaryTotal">—</strong></article>
-    <article class="summary-stat"><span>Affidabili</span><strong id="summaryReliable">—</strong></article>
-    <article class="summary-stat"><span>Sotto soglia</span><strong id="summaryLow">—</strong></article>
-    <article class="summary-stat"><span>Mediana</span><strong id="summaryMedian">—</strong></article>
+    <article class="summary-main"><div class="micro-label">Current analysis</div><h2 id="summaryTitle">—</h2><p id="summaryCopy">—</p></article>
+    <article class="summary-stat"><span>Total</span><strong id="summaryTotal">—</strong></article>
+    <article class="summary-stat"><span>Reliable</span><strong id="summaryReliable">—</strong></article>
+    <article class="summary-stat"><span>Below threshold</span><strong id="summaryLow">—</strong></article>
+    <article class="summary-stat"><span>Median</span><strong id="summaryMedian">—</strong></article>
   </section>
 
   <section class="empty-rankings" id="emptyState" hidden></section>
@@ -2684,12 +2684,12 @@ body.mode-ranking .threshold-preset small{font-size:6px!important;line-height:1.
     <div class="podium-grid" id="podium"></div>
     <div class="method-banner"><div id="methodNote"></div><small id="datasetWarnings"></small></div>
     <section class="table-card" aria-labelledby="tableTitle">
-      <div class="table-card-head"><h3 id="tableTitle">Graduatoria completa</h3><span id="visibleCount">—</span></div>
+      <div class="table-card-head"><h3 id="tableTitle">Full ranking</h3><span id="visibleCount">—</span></div>
       <div id="rankingTableHost"></div>
     </section>
   </section>
 
-  <footer class="site-footer rank-footer"><span>Rankings Lab · indicatori descrittivi, non previsioni certe</span><span id="footerStats">—</span></footer>
+  <footer class="site-footer rank-footer"><span>Rankings Lab · descriptive indicators, not certain predictions</span><span id="footerStats">—</span></footer>
 </main>
 <script src="./matchup_data.js"></script>
 <script src="./champion-icons.js"></script>

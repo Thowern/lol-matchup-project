@@ -11,20 +11,20 @@
     90: {
       z: 1.6448536269514722,
       label: '90%',
-      name: 'Esplorativo',
-      description: 'Più permissivo: riduce la penalizzazione dei matchup con pochi dati. Utile per esplorare, meno prudente nelle conclusioni.'
+      name: 'Exploratory',
+      description: 'More permissive: reduces the penalty for matchups with little data. Useful for exploration, less conservative in its conclusions.'
     },
     95: {
       z: 1.959963984540054,
       label: '95%',
-      name: 'Bilanciato',
-      description: 'Compromesso statistico classico tra prudenza e sensibilità. Penalizza i campioni poco osservati senza essere eccessivamente severo.'
+      name: 'Balanced',
+      description: 'Classic statistical compromise between caution and sensitivity. Penalizes champions with few observations without being excessively strict.'
     },
     99: {
       z: 2.5758293035489004,
       label: '99%',
-      name: 'Prudente',
-      description: 'Impostazione predefinita e più prudente: richiede evidenza più forte e penalizza maggiormente i risultati ottenuti su pochi matchup.'
+      name: 'Conservative',
+      description: 'Default and most conservative setting: requires stronger evidence and more heavily penalizes results obtained from few matchups.'
     }
   };
 
@@ -33,87 +33,87 @@
       key: 'general_winrate',
       label: 'Win rate',
       short: 'WR',
-      description: 'Percentuale di vittorie complessiva del campione nel ruolo.',
+      description: 'Champion\'s overall win rate in the role.',
       format: (v) => pct(v, 1),
       higherIsBetter: true
     },
     {
       key: 'avg_damage_to_champs',
-      label: 'Danni ai campioni',
-      short: 'Danni',
-      description: 'Danno medio inflitto ai campioni avversari.',
+      label: 'Damage to champions',
+      short: 'Damage',
+      description: 'Average damage dealt to enemy champions.',
       format: (v) => integer(v),
       higherIsBetter: true
     },
     {
       key: 'avg_damage_taken',
-      label: 'Danni subiti',
-      short: 'Resistenza',
-      description: 'Danno medio assorbito. Non è sempre un valore positivo: dipende dal ruolo e dallo stile del campione.',
+      label: 'Damage taken',
+      short: 'Durability',
+      description: 'Average damage absorbed. This is not always a positive value: it depends on the champion\'s role and playstyle.',
       format: (v) => integer(v),
       higherIsBetter: true
     },
     {
       key: 'vision_score',
       label: 'Vision score',
-      short: 'Visione',
-      description: 'Vision score medio nelle partite del ruolo.',
+      short: 'Vision',
+      description: 'Average vision score in matches for the role.',
       format: (v) => decimal(v, 1),
       higherIsBetter: true
     },
     {
       key: 'avg_total_time_cc_dealt',
-      label: 'Controllo totale',
+      label: 'Total crowd control',
       short: 'CC',
-      description: 'Tempo medio complessivo di crowd control applicato.',
+      description: 'Average total crowd-control time applied.',
       format: (v) => decimal(v, 1),
       higherIsBetter: true
     },
     {
       key: 'avg_time_ccing_others',
-      label: 'CC sugli avversari',
-      short: 'CC diretto',
-      description: 'Tempo medio durante il quale gli avversari restano controllati.',
+      label: 'CC on opponents',
+      short: 'Direct CC',
+      description: 'Average time during which opponents remain controlled.',
       format: (v) => decimal(v, 1),
       higherIsBetter: true
     },
     {
       key: 'avg_event_kills',
-      label: 'Kill medie',
+      label: 'Average kills',
       short: 'Kill',
-      description: 'Kill medie registrate negli eventi del dataset.',
+      description: 'Average kills recorded in dataset events.',
       format: (v) => decimal(v, 2),
       higherIsBetter: true
     },
     {
       key: 'avg_bounty_net',
-      label: 'Saldo taglie',
-      short: 'Taglie',
-      description: 'Oro medio ottenuto tramite taglie meno quello concesso morendo.',
+      label: 'Bounty balance',
+      short: 'Bounties',
+      description: 'Average gold gained through bounties minus the amount given up by dying.',
       format: (v) => signed(v, 1),
       higherIsBetter: true
     },
     {
       key: 'avg_level6_minute',
-      label: 'Timing livello 6',
-      short: 'Livello 6',
-      description: 'Minuto medio in cui viene raggiunto il livello 6. Un valore più basso indica un timing più rapido.',
+      label: 'Level 6 timing',
+      short: 'Level 6',
+      description: 'Average minute when level 6 is reached. A lower value indicates faster timing.',
       format: (v) => `${decimal(v, 2)} min`,
       higherIsBetter: false
     },
     {
       key: 'shutdown_collected_rate',
-      label: 'Shutdown incassati',
+      label: 'Shutdowns collected',
       short: 'Shutdown +',
-      description: 'Frequenza con cui il campione incassa una taglia importante.',
+      description: 'Frequency with which the champion collects a major bounty.',
       format: (v) => pct(v, 1),
       higherIsBetter: true
     },
     {
       key: 'shutdown_given_rate',
-      label: 'Shutdown concessi',
+      label: 'Shutdowns given',
       short: 'Shutdown −',
-      description: 'Frequenza con cui il campione concede una taglia importante. Più basso è meglio.',
+      description: 'Frequency with which the champion gives up a major bounty. Lower is better.',
       format: (v) => pct(v, 1),
       higherIsBetter: false
     }
@@ -121,29 +121,29 @@
 
   const COUNTER_SORTS = {
     winrate: {
-      label: 'Win rate nel matchup',
-      description: 'Ordina gli avversari per percentuale di vittorie contro il campione selezionato.',
+      label: 'Matchup win rate',
+      description: 'Sorts opponents by their win rate against the selected champion.',
       value: (row) => row.winrate,
       format: (v) => pct(v, 1),
       higherIsBetter: true
     },
     diff: {
-      label: 'Scarto dal WR abituale',
-      description: 'Premia i campioni che rendono meglio del proprio win rate medio proprio contro il campione selezionato.',
+      label: 'Difference from usual WR',
+      description: 'Rewards champions who outperform their average win rate specifically against the selected champion.',
       value: (row) => row.diff,
       format: (v) => signedPct(v, 1),
       higherIsBetter: true
     },
     wilson: {
-      label: 'WR corretto per affidabilità',
-      description: 'Usa il limite inferiore Wilson configurabile: penalizza automaticamente i risultati ottenuti su pochissime partite.',
+      label: 'Reliability-adjusted WR',
+      description: 'Uses the configurable Wilson lower bound: automatically penalizes results obtained from very few matches.',
       value: (row) => row.wilson,
       format: (v) => pct(v, 1),
       higherIsBetter: true
     },
     matches: {
-      label: 'Numero di partite',
-      description: 'Mostra prima i matchup con il campione statistico più ampio.',
+      label: 'Number of matches',
+      description: 'Shows matchups with the largest statistical sample first.',
       value: (row) => row.games,
       format: (v) => integer(v),
       higherIsBetter: true
@@ -267,11 +267,11 @@
   }
 
   function writeSetting(key, value) {
-    try { window.localStorage.setItem(key, String(value)); } catch (_) { /* storage opzionale */ }
+    try { window.localStorage.setItem(key, String(value)); } catch (_) { /* optional storage */ }
   }
 
   function removeSetting(key) {
-    try { window.localStorage.removeItem(key); } catch (_) { /* storage opzionale */ }
+    try { window.localStorage.removeItem(key); } catch (_) { /* optional storage */ }
   }
 
   function roleOrder() {
@@ -401,17 +401,17 @@
     const fallback = mode === 'counter' ? [10, 25, 50, 100] : [100, 250, 500, 1000];
     if (!values.length) {
       return {
-        values: fallback.map((value, index) => ({ value, coverage: null, label: ['Inclusiva', 'Consigliata', 'Solida', 'Rigorosa'][index], recommended: index === 1 })),
+        values: fallback.map((value, index) => ({ value, coverage: null, label: ['Inclusive', 'Recommended', 'Robust', 'Rigorous'][index], recommended: index === 1 })),
         recommended: fallback[1],
         sampleCount: 0
       };
     }
 
     const targets = [
-      { q: 0.10, label: 'Inclusiva' },
-      { q: 0.25, label: 'Consigliata', recommended: true },
-      { q: 0.50, label: 'Solida' },
-      { q: 0.75, label: 'Rigorosa' }
+      { q: 0.10, label: 'Inclusive' },
+      { q: 0.25, label: 'Recommended', recommended: true },
+      { q: 0.50, label: 'Robust' },
+      { q: 0.75, label: 'Rigorous' }
     ];
     const maxValue = values[values.length - 1];
     const median = quantile(values, 0.5) ?? maxValue;
@@ -443,10 +443,10 @@
     return {
       values: sorted.map((value, index) => {
         let label;
-        if (index === recommendedIndex) label = 'Consigliata';
-        else if (index < recommendedIndex) label = index === 0 ? 'Inclusiva' : 'Ampia';
-        else if (index === recommendedIndex + 1) label = 'Solida';
-        else label = 'Rigorosa';
+        if (index === recommendedIndex) label = 'Recommended';
+        else if (index < recommendedIndex) label = index === 0 ? 'Inclusive' : 'Broad';
+        else if (index === recommendedIndex + 1) label = 'Robust';
+        else label = 'Rigorous';
         return {
           value,
           label,
@@ -478,7 +478,7 @@
   function counterSortDescription(key = state.counterSort) {
     if (key === 'wilson') {
       const level = wilsonLevel();
-      return `Limite inferiore Wilson al ${level.label}: ${level.description}`;
+      return `Wilson lower bound at ${level.label}: ${level.description}`;
     }
     return COUNTER_SORTS[key]?.description || '';
   }
@@ -509,9 +509,9 @@
   function confidence(games) {
     const n = safeNumber(games) ?? 0;
     const threshold = activeThreshold();
-    if (n < threshold) return { level: 'low', label: 'Sotto soglia' };
-    if (n < Math.max(threshold * 3, state.mode === 'counter' ? 100 : 300)) return { level: 'mid', label: 'Campione discreto' };
-    return { level: 'high', label: 'Campione solido' };
+    if (n < threshold) return { level: 'low', label: 'Below threshold' };
+    if (n < Math.max(threshold * 3, state.mode === 'counter' ? 100 : 300)) return { level: 'mid', label: 'Fair sample' };
+    return { level: 'high', label: 'Solid sample' };
   }
 
   function wilsonLowerBound(rate, games, confidence = state.wilsonConfidence) {
@@ -648,11 +648,11 @@
   }
 
   function fail(message) {
-    setDataStatus('error', 'Dati assenti');
+    setDataStatus('error', 'Missing data');
     byId('rankingsOutput').hidden = true;
     const empty = byId('emptyState');
     empty.hidden = false;
-    empty.innerHTML = `<h3>Dataset non disponibile</h3><p>${esc(message)}</p>`;
+    empty.innerHTML = `<h3>Dataset unavailable</h3><p>${esc(message)}</p>`;
   }
 
   function renderMeta() {
@@ -660,7 +660,7 @@
     byId('heroDatasetCount').textContent = integer(totalMatchups);
     byId('heroRoleCount').textContent = integer(roleOrder().length);
     byId('heroThreshold').textContent = integer(activeThreshold());
-    byId('footerStats').textContent = `Rankings Lab · ${integer(totalMatchups)} matchup disponibili`;
+    byId('footerStats').textContent = `Rankings Lab · ${integer(totalMatchups)} available matchups`;
   }
 
   function renderRolePills() {
@@ -684,8 +684,8 @@
     byId('counterSortField').hidden = state.mode !== 'counter';
     byId('wilsonField').hidden = state.mode !== 'counter';
     byId('thresholdContext').textContent = state.mode === 'role'
-      ? 'partite complessive nel ruolo'
-      : 'partite del singolo matchup';
+      ? 'total matches in the role'
+      : 'matches in the individual matchup';
   }
 
   function renderMetricOptions() {
@@ -711,14 +711,14 @@
     input.step = String(niceStep(quantile(thresholdSampleSizes(), 0.5) ?? threshold, state.mode));
     byId('includeLowSample').checked = state.includeLowSample;
     byId('thresholdPresets').innerHTML = presets.values.map((preset) => {
-      const coverage = preset.coverage === null ? '' : `${Math.round(preset.coverage * 100)}% coperto`;
-      const title = `${preset.label}: almeno ${integer(preset.value)} partite${coverage ? ` · ${coverage}` : ''}`;
+      const coverage = preset.coverage === null ? '' : `${Math.round(preset.coverage * 100)}% covered`;
+      const title = `${preset.label}: at least ${integer(preset.value)} matches${coverage ? ` · ${coverage}` : ''}`;
       return `<button class="threshold-preset${preset.value === threshold ? ' active' : ''}${preset.recommended ? ' recommended' : ''}" type="button" data-value="${preset.value}" title="${esc(title)}"><strong>${integer(preset.value)}</strong><small>${esc(preset.label)}</small></button>`;
     }).join('');
-    const contextName = state.mode === 'role' ? 'campioni del ruolo' : (state.counterChampion ? `matchup contro ${state.counterChampion}` : 'matchup del ruolo');
+    const contextName = state.mode === 'role' ? 'champions in the role' : (state.counterChampion ? `matchups against ${state.counterChampion}` : 'role matchups');
     byId('thresholdPresetMeta').textContent = presets.sampleCount
-      ? `Preset calcolati su ${integer(presets.sampleCount)} ${contextName}. “Consigliata” mantiene in genere circa tre quarti dei risultati; Ranking e Counter conservano soglie indipendenti.`
-      : 'Preset di riserva: il dataset non espone ancora campioni statistici utilizzabili per questo contesto.';
+      ? `Presets calculated on ${integer(presets.sampleCount)} ${contextName}. “Recommended” generally retains about three quarters of the results; Ranking and Counter use independent thresholds.`
+      : 'Fallback preset: the dataset does not yet expose usable statistical samples for this context.';
   }
 
   function renderWilsonControls() {
@@ -752,8 +752,8 @@
 
     list.innerHTML = champions.length ? champions.map((name) => {
       const games = safeNumber(profiles?.[name]?.coverage?.total_games);
-      return `<button class="counter-option" type="button" role="option" data-champion="${esc(name)}">${champHtml(name, 'sm')}<em>${integer(games)} partite</em></button>`;
-    }).join('') : '<div class="counter-option-empty">Nessun campione trovato.</div>';
+      return `<button class="counter-option" type="button" role="option" data-champion="${esc(name)}">${champHtml(name, 'sm')}<em>${integer(games)} matches</em></button>`;
+    }).join('') : '<div class="counter-option-empty">No champion found.</div>';
   }
 
   function openChampionPicker() {
@@ -797,7 +797,7 @@
 
     byId('summaryTitle').textContent = state.mode === 'role'
       ? `${metric.label} · ${roleLabel(state.role)}`
-      : state.counterChampion ? `Counter di ${state.counterChampion} · ${roleLabel(state.role)}` : `Scegli un campione · ${roleLabel(state.role)}`;
+      : state.counterChampion ? `Counter di ${state.counterChampion} · ${roleLabel(state.role)}` : `Choose a champion · ${roleLabel(state.role)}`;
     byId('summaryCopy').textContent = state.mode === 'role'
       ? metric.description
       : counterSortDescription();
@@ -805,19 +805,19 @@
     byId('summaryReliable').textContent = integer(reliable);
     byId('summaryLow').textContent = integer(low);
     byId('summaryMedian').textContent = median === null ? '—' : metric.format(median);
-    byId('visibleCount').textContent = `${integer(rows.length)} righe visibili`;
+    byId('visibleCount').textContent = `${integer(rows.length)} visible rows`;
   }
 
   function podiumCard(row, position, metric) {
     const low = (safeNumber(row.games) ?? 0) < activeThreshold();
     const value = state.mode === 'role' ? row.value : metric.value(row);
     const detail = state.mode === 'role'
-      ? `${integer(row.games)} partite · ${integer(row.matchups)} matchup`
-      : `${integer(row.games)} partite · ${signedPct(row.diff, 1)} vs WR abituale`;
+      ? `${integer(row.games)} matches · ${integer(row.matchups)} matchup`
+      : `${integer(row.games)} matches · ${signedPct(row.diff, 1)} vs usual WR`;
     return `<article class="podium-card position-${position}${low ? ' low-sample' : ''}">
       <div class="podium-rank">${position}</div>
       <div class="podium-copy"><span>${champHtml(row.champion, 'md')}</span><strong>${metric.format(value)}</strong><em>${esc(detail)}</em></div>
-      ${low ? '<span class="sample-badge low">Sotto soglia</span>' : '<span class="sample-badge high">Affidabile</span>'}
+      ${low ? '<span class="sample-badge low">Below threshold</span>' : '<span class="sample-badge high">Reliable</span>'}
     </article>`;
   }
 
@@ -826,7 +826,7 @@
     const top = rows.slice(0, 3);
     byId('podium').innerHTML = top.length
       ? top.map((row, index) => podiumCard(row, index + 1, metric)).join('')
-      : '<div class="empty-inline">Nessun risultato disponibile con i filtri correnti.</div>';
+      : '<div class="empty-inline">No results available with the current filters.</div>';
   }
 
   function roleTable(rows, allRows) {
@@ -842,7 +842,7 @@
       const deepLink = `./visual.html?role=${encodeURIComponent(state.role)}&a=${encodeURIComponent(row.champion)}`;
       return `<tr class="ranking-row${low ? ' low-sample' : ''}">
         <td class="rank-cell"><span>${integer(row.absoluteRank)}</span></td>
-        <td class="champion-cell"><strong>${champHtml(row.champion, 'sm')}</strong><em>${pct(row.generalWinrate, 1)} WR generale</em></td>
+        <td class="champion-cell"><strong>${champHtml(row.champion, 'sm')}</strong><em>${pct(row.generalWinrate, 1)} general WR</em></td>
         <td class="metric-cell">
           <div class="metric-line"><strong>${metric.format(row.value)}</strong>${row.percentile !== null ? `<span>p${integer(row.percentile)}</span>` : ''}</div>
           <div class="metric-track" aria-hidden="true"><i style="width:${width.toFixed(1)}%"></i></div>
@@ -850,13 +850,13 @@
         <td>${integer(row.games)}</td>
         <td>${integer(row.matchups)}</td>
         <td><span class="confidence-pill ${conf.level}">${esc(conf.label)}</span></td>
-        <td class="action-cell"><a class="table-action" href="${deepLink}">Apri 1v1</a></td>
+        <td class="action-cell"><a class="table-action" href="${deepLink}">Open 1v1</a></td>
       </tr>`;
     }).join('');
 
     return `<div class="table-scroll"><table class="ranking-table">
-      <caption class="visually-hidden">Classifica dei campioni ${esc(roleLabel(state.role))} per ${esc(metric.label)}</caption>
-      <thead><tr><th>#</th><th>Campione</th><th>${esc(metric.label)}</th><th>Partite</th><th>Matchup</th><th>Affidabilità</th><th></th></tr></thead>
+      <caption class="visually-hidden">Champion ranking ${esc(roleLabel(state.role))} by ${esc(metric.label)}</caption>
+      <thead><tr><th>#</th><th>Champion</th><th>${esc(metric.label)}</th><th>Matches</th><th>Matchup</th><th>Reliability</th><th></th></tr></thead>
       <tbody>${body}</tbody>
     </table></div>`;
   }
@@ -874,23 +874,23 @@
       const deepLink = `./visual.html?role=${encodeURIComponent(state.role)}&a=${encodeURIComponent(row.champion)}&b=${encodeURIComponent(state.counterChampion)}`;
       return `<tr class="ranking-row${low ? ' low-sample' : ''}">
         <td class="rank-cell"><span>${integer(row.absoluteRank)}</span></td>
-        <td class="champion-cell"><strong>${champHtml(row.champion, 'sm')}</strong><em>contro ${esc(state.counterChampion)}</em></td>
+        <td class="champion-cell"><strong>${champHtml(row.champion, 'sm')}</strong><em>against ${esc(state.counterChampion)}</em></td>
         <td class="metric-cell">
-          <div class="metric-line"><strong>${pct(row.winrate, 1)}</strong><span>${row.targetWinrate === null ? '' : `${pct(row.targetWinrate, 1)} al bersaglio`}</span></div>
+          <div class="metric-line"><strong>${pct(row.winrate, 1)}</strong><span>${row.targetWinrate === null ? '' : `${pct(row.targetWinrate, 1)} against the target`}</span></div>
           <div class="metric-track" aria-hidden="true"><i style="width:${width.toFixed(1)}%"></i></div>
         </td>
-        <td class="wilson-cell"><strong>${pct(row.wilson, 1)}</strong><small>${state.wilsonConfidence}% prudenziale</small></td>
+        <td class="wilson-cell"><strong>${pct(row.wilson, 1)}</strong><small>${state.wilsonConfidence}% conservative</small></td>
         <td class="signed-cell ${rowTone(row.diff)}">${signedPct(row.diff, 1)}</td>
         <td>${pct(row.generalWinrate, 1)}</td>
         <td>${integer(row.games)}</td>
         <td><span class="confidence-pill ${conf.level}">${esc(conf.label)}</span></td>
-        <td class="action-cell"><a class="table-action" href="${deepLink}">Analizza</a></td>
+        <td class="action-cell"><a class="table-action" href="${deepLink}">Analyze</a></td>
       </tr>`;
     }).join('');
 
     return `<div class="table-scroll"><table class="ranking-table counter-table">
-      <caption class="visually-hidden">Counter di ${esc(state.counterChampion)} nel ruolo ${esc(roleLabel(state.role))}</caption>
-      <thead><tr><th>#</th><th>Counter</th><th>WR matchup</th><th>Wilson ${state.wilsonConfidence}%</th><th>Diff WR</th><th>WR abituale</th><th>Partite</th><th>Affidabilità</th><th></th></tr></thead>
+      <caption class="visually-hidden">Counter di ${esc(state.counterChampion)} in the role ${esc(roleLabel(state.role))}</caption>
+      <thead><tr><th>#</th><th>Counter</th><th>WR matchup</th><th>Wilson ${state.wilsonConfidence}%</th><th>WR Diff</th><th>Usual WR</th><th>Matches</th><th>Reliability</th><th></th></tr></thead>
       <tbody>${body}</tbody>
     </table></div>`;
   }
@@ -899,15 +899,15 @@
     const note = byId('methodNote');
     if (state.mode === 'role') {
       const metric = metricByKey(state.metric);
-      note.innerHTML = `<strong>Come leggere la classifica:</strong> il valore principale è <b>${esc(metric.label)}</b>. Le righe sotto ${integer(activeThreshold())} partite complessive nel ruolo vengono attenuate e marcate; i preset sono ricavati dalla distribuzione reale del ruolo corrente.`;
+      note.innerHTML = `<strong>How to read the ranking:</strong> the main value is <b>${esc(metric.label)}</b>. Rows below ${integer(activeThreshold())} total matches in the role are muted and marked; presets are derived from the actual distribution of the current role.`;
     } else if (state.counterChampion) {
       const level = wilsonLevel();
-      note.innerHTML = `<strong>Che cosa significa “counter” qui:</strong> ogni riga mostra il rendimento contro <b>${esc(state.counterChampion)}</b>. I risultati sotto ${integer(activeThreshold())} partite del singolo matchup sono attenuati. Il Wilson ${esc(level.label)} è il limite prudenziale del WR: più il campione statistico è piccolo, più il valore viene ridotto.`;
+      note.innerHTML = `<strong>What “counter” means here:</strong> each row shows performance against <b>${esc(state.counterChampion)}</b>. The results below ${integer(activeThreshold())} matches in the individual matchup are muted. The Wilson ${esc(level.label)} value is the conservative lower bound of WR: the smaller the statistical sample, the more the value is reduced.`;
     } else {
-      note.innerHTML = '<strong>Seleziona un campione:</strong> la pagina cercherà tutte le righe matchup dirette o inverse disponibili nel dataset, senza inventare avversari mancanti.';
+      note.innerHTML = '<strong>Select a champion:</strong> the page will search all direct or reversed matchup rows available in the dataset, without inventing missing opponents.';
     }
     const exportedLow = allRows.filter((row) => row.lowSampleExport).length;
-    byId('datasetWarnings').textContent = exportedLow ? `${integer(exportedLow)} righe risultano già marcate low_sample dal dataset.` : '';
+    byId('datasetWarnings').textContent = exportedLow ? `${integer(exportedLow)} rows are already marked low_sample by the dataset.` : '';
   }
 
   function renderResults() {
@@ -926,14 +926,14 @@
     if (state.mode === 'counter' && !state.counterChampion) {
       output.hidden = true;
       empty.hidden = false;
-      empty.innerHTML = '<h3>Scegli il campione da contrastare</h3><p>La classifica mostrerà tutti gli avversari coperti dal dataset, ordinati per win rate o per differenza rispetto al loro rendimento abituale.</p>';
+      empty.innerHTML = '<h3>Choose the champion to counter</h3><p>The ranking will show all opponents covered by the dataset, sorted by win rate or by difference from their usual performance.</p>';
       return;
     }
 
     if (!allRows.length) {
       output.hidden = true;
       empty.hidden = false;
-      empty.innerHTML = '<h3>Nessun dato disponibile</h3><p>Il dataset non contiene valori utilizzabili per questa combinazione di ruolo, metrica e campione.</p>';
+      empty.innerHTML = '<h3>No data available</h3><p>The dataset contains no usable values for this combination of role, metric, and champion.</p>';
       return;
     }
 
@@ -941,7 +941,7 @@
     empty.hidden = true;
     byId('rankingTableHost').innerHTML = rows.length
       ? (state.mode === 'role' ? roleTable(rows, allRows) : counterTable(rows, allRows))
-      : '<div class="empty-inline">Nessuna riga soddisfa la ricerca o il filtro di affidabilità.</div>';
+      : '<div class="empty-inline">No row satisfies the search or reliability filter.</div>';
   }
 
   function csvEscape(value) {
@@ -1128,7 +1128,7 @@
   function init() {
     syncTopbarHeight();
     if (!DATA || !DATA.matchups || !DATA.matchupColumns || !DATA.championProfiles) {
-      fail('Controlla che matchup_data.js sia nella stessa cartella e venga caricato prima di rankings.js.');
+      fail('Make sure matchup_data.js is in the same folder and is loaded before rankings.js.');
       return;
     }
 

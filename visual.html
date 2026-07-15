@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Matchup Lab — Analisi 1v1</title>
+<title>Matchup Lab — 1v1 Analysis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1096,7 +1096,7 @@ html { scroll-padding-top: calc(var(--topbar-height) + var(--space-6)); }
   border-bottom: 1px solid var(--slot-line, var(--line-soft));
 }
 .slot-label::after {
-  content: "Selezione attiva";
+  content: "Active selection";
   margin-left: auto;
   padding: 5px 9px;
   border: 1px solid var(--slot-line, var(--line-soft));
@@ -1269,7 +1269,7 @@ html { scroll-padding-top: calc(var(--topbar-height) + var(--space-6)); }
 .cockpit-card.compact .cockpit-copy { margin-top: var(--space-2); }
 
 .dossier::before {
-  content: "Dossier operativo";
+  content: "Operational dossier";
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
@@ -1727,7 +1727,7 @@ html { scroll-padding-top: calc(var(--topbar-height) + var(--space-6)); }
 
 
 
-/* V12 — atlante visuale, fasi grafiche e flusso keyboard-first */
+/* V12 — visual atlas, graphical phases, and keyboard-first flow */
 .topbar-inner { min-height: 0 !important; }
 .tabs { z-index: 60 !important; background: linear-gradient(180deg, oklch(16.5% .024 240 / .98), oklch(12.5% .020 240 / .98)) !important; }
 .metric-atlas-shell { display:grid; gap:var(--space-6); }
@@ -2095,18 +2095,18 @@ summary::marker { color:var(--champ-a); }
   <div class="topbar-inner">
     <div class="brand" aria-label="Matchup Intelligence">
       <div class="brand-mark"><span>MATCHUP</span><em>LAB</em></div>
-      <div class="brand-tag">analisi matchup</div>
+      <div class="brand-tag">matchup analysis</div>
     </div>
 
-    <nav class="nav-links" aria-label="Navigazione moduli">
+    <nav class="nav-links" aria-label="Module navigation">
       <a class="nav-link active" href="./visual.html" aria-current="page">Matchup 1v1</a>
-      <a class="nav-link" href="./tm_data.html">Modalità Team</a>
-      <a class="nav-link" href="./rankings.html">Classifiche</a>
+      <a class="nav-link" href="./tm_data.html">Team Mode</a>
+      <a class="nav-link" href="./rankings.html">Rankings</a>
       <a class="nav-link" href="./pool.html">Pool Builder</a>
     </nav>
 
-    <div class="data-status-pill loading" id="dataStatus">Caricamento dati</div>
-    <nav class="role-pills" id="rolePills" aria-label="Seleziona ruolo"></nav>
+    <div class="data-status-pill loading" id="dataStatus">Loading data</div>
+    <nav class="role-pills" id="rolePills" aria-label="Select role"></nav>
   </div>
 </header>
 
@@ -2115,22 +2115,22 @@ summary::marker { color:var(--champ-a); }
   <section class="module-hero" aria-labelledby="pageTitle">
     <div class="hero-card hero-card-1v1">
       <div class="hero-main">
-        <div class="micro-label hero-kicker">Analisi 1v1</div>
+        <div class="micro-label hero-kicker">1v1 Analysis</div>
         <h1 class="hero-title" id="pageTitle"><span class="word-white">Matchup</span> <span class="word-lab">Lab</span></h1>
         <p class="hero-copy">
-          Confronta due campioni nello stesso ruolo e scopri chi tende ad avere più vantaggio, quando arriva il momento migliore per agire e quanto sono solidi i dati.
+          Compare two champions in the same role and discover who tends to have a greater advantage, when the best time to act occurs, and how robust the data is.
         </p>
-        <div class="hero-step-grid" aria-label="Mini mappa di lettura">
-          <div class="hero-step"><span>Contesto</span><strong>Stesso ruolo</strong><em>confrontiamo solo partite davvero comparabili</em></div>
-          <div class="hero-step"><span>Vantaggio</span><strong>Oltre la percentuale di vittorie</strong><em>separiamo l’effetto dell’avversario dalla forza abituale dei campioni</em></div>
-          <div class="hero-step"><span>Momento chiave</span><strong>Quando giocare</strong><em>oro, XP, livello 6, torri e obiettivi</em></div>
+        <div class="hero-step-grid" aria-label="Mini reading map">
+          <div class="hero-step"><span>Context</span><strong>Same role</strong><em>we compare only genuinely comparable matches</em></div>
+          <div class="hero-step"><span>Advantage</span><strong>Beyond win percentage</strong><em>we separate the opponent's effect from the champions' typical strength</em></div>
+          <div class="hero-step"><span>Key moment</span><strong>When to play</strong><em>gold, XP, level 6, towers, and objectives</em></div>
         </div>
       </div>
-      <aside class="hero-side hero-side-dynamic" aria-label="Sintesi metodo e copertura">
+      <aside class="hero-side hero-side-dynamic" aria-label="Method and coverage summary">
         <div class="hero-note hero-note-primary">
-          <strong>Una guida, non una sentenza:</strong> i dati mostrano tendenze utili per preparare la lane, ma non sostituiscono esecuzione, composizione e decisioni in partita.
+          <strong>A guide, not a verdict:</strong> the data shows useful tendencies for preparing the lane, but it does not replace execution, team composition, or in-game decisions.
         </div>
-        <div class="hero-mini-grid hero-mini-grid-staggered" aria-label="Copertura dataset">
+        <div class="hero-mini-grid hero-mini-grid-staggered" aria-label="Dataset coverage">
           <div class="hero-mini"><span>Matchup</span><strong id="heroDatasetCount">—</strong></div>
           <div class="hero-mini"><span>Vista</span><strong>1v1</strong></div>
         </div>
@@ -2138,7 +2138,7 @@ summary::marker { color:var(--champ-a); }
           <span class="rail-dot a"></span>
           <span class="rail-line"></span>
           <span class="rail-dot b"></span>
-          <p><strong>Come leggerla:</strong> vantaggio → momento migliore → affidabilità del dato.</p>
+          <p><strong>How to read it:</strong> advantage → best timing → data reliability.</p>
         </div>
       </aside>
     </div>
@@ -2146,13 +2146,13 @@ summary::marker { color:var(--champ-a); }
 
   <section class="picker">
     <div class="picker-head">
-      <h2>Scegli il matchup</h2>
+      <h2>Choose the matchup</h2>
     </div>
     <div class="picker-console">
       <div class="slot slot-a">
-        <div class="slot-label"><span class="slot-dot"></span>Campione A</div>
+        <div class="slot-label"><span class="slot-dot"></span>Champion A</div>
         <div class="combobox" id="comboA">
-          <input type="text" role="combobox" aria-expanded="false" aria-autocomplete="list" placeholder="Cerca un campione…" autocomplete="off">
+          <input type="text" role="combobox" aria-expanded="false" aria-autocomplete="list" placeholder="Search for a champion…" autocomplete="off">
           <div class="combobox-list" role="listbox"></div>
         </div>
         <div class="slot-hint" id="hintA"></div>
@@ -2160,47 +2160,47 @@ summary::marker { color:var(--champ-a); }
 
       <div class="vs-divider">
         <span class="vs-mark">VS</span>
-        <button class="swap-btn" id="swapBtn" title="Inverti i due campioni" aria-label="Inverti i due campioni">
+        <button class="swap-btn" id="swapBtn" title="Swap the two champions" aria-label="Swap the two champions">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
         </button>
       </div>
 
       <div class="slot slot-b">
-        <div class="slot-label"><span class="slot-dot"></span>Campione B</div>
+        <div class="slot-label"><span class="slot-dot"></span>Champion B</div>
         <div class="combobox" id="comboB">
-          <input type="text" role="combobox" aria-expanded="false" aria-autocomplete="list" placeholder="Scegli prima il campione A" autocomplete="off" disabled>
+          <input type="text" role="combobox" aria-expanded="false" aria-autocomplete="list" placeholder="Choose champion A first" autocomplete="off" disabled>
           <div class="combobox-list" role="listbox"></div>
         </div>
         <div class="slot-hint" id="hintB"></div>
       </div>
     </div>
 
-    <div class="tool-cockpit" id="toolCockpit" aria-label="Cruscotto operativo matchup">
+    <div class="tool-cockpit" id="toolCockpit" aria-label="Operational matchup dashboard">
       <article class="cockpit-card primary" id="cockpitRead">
-        <div class="cockpit-kicker">Sintesi matchup</div>
-        <h3 class="cockpit-title" id="cockpitTitle">Nessun confronto attivo.</h3>
-        <p class="cockpit-copy" id="cockpitCopy">Una sintesi semplice: chi è favorito, quando può sfruttarlo e quanto possiamo fidarci del risultato.</p>
+        <div class="cockpit-kicker">Matchup summary</div>
+        <h3 class="cockpit-title" id="cockpitTitle">No active matchup.</h3>
+        <p class="cockpit-copy" id="cockpitCopy">A simple summary: who is favored, when they can exploit it, and how much confidence to place in the result.</p>
       </article>
       <article class="cockpit-card compact a" id="cockpitA">
-        <div class="cockpit-kicker">Campione A</div>
-        <h3 class="cockpit-title" id="cockpitATitle">In attesa</h3>
-        <p class="cockpit-copy" id="cockpitACopy">Lato sinistro del confronto.</p>
+        <div class="cockpit-kicker">Champion A</div>
+        <h3 class="cockpit-title" id="cockpitATitle">Pending</h3>
+        <p class="cockpit-copy" id="cockpitACopy">Left side of the comparison.</p>
       </article>
       <article class="cockpit-card compact b" id="cockpitB">
-        <div class="cockpit-kicker">Campione B</div>
-        <h3 class="cockpit-title" id="cockpitBTitle">In attesa</h3>
-        <p class="cockpit-copy" id="cockpitBCopy">Lato destro del confronto.</p>
+        <div class="cockpit-kicker">Champion B</div>
+        <h3 class="cockpit-title" id="cockpitBTitle">Pending</h3>
+        <p class="cockpit-copy" id="cockpitBCopy">Right side of the comparison.</p>
       </article>
       <article class="cockpit-card compact warning" id="cockpitTrust">
-        <div class="cockpit-kicker">Affidabilità</div>
+        <div class="cockpit-kicker">Reliability</div>
         <h3 class="cockpit-title" id="cockpitTrustTitle">Dataset pronto</h3>
-        <p class="cockpit-copy" id="cockpitTrustCopy">Quante partite dirette sostengono questa lettura.</p>
+        <p class="cockpit-copy" id="cockpitTrustCopy">How many direct matches support this analysis.</p>
       </article>
       <article class="cockpit-card compact" id="cockpitNext">
-        <div class="cockpit-kicker">Prossima azione</div>
-        <h3 class="cockpit-title" id="cockpitNextTitle">Leggi l’analisi</h3>
-        <p class="cockpit-copy" id="cockpitNextCopy">L’analisi si apre quando esistono dati diretti per la coppia scelta.</p>
-        <div class="cockpit-pill-row" aria-hidden="true"><span class="cockpit-pill">Sintesi</span><span class="cockpit-pill">Andamento</span><span class="cockpit-pill">Rischi</span></div>
+        <div class="cockpit-kicker">Next action</div>
+        <h3 class="cockpit-title" id="cockpitNextTitle">Read the analysis</h3>
+        <p class="cockpit-copy" id="cockpitNextCopy">The analysis opens when direct data exists for the selected pair.</p>
+        <div class="cockpit-pill-row" aria-hidden="true"><span class="cockpit-pill">Summary</span><span class="cockpit-pill">Progression</span><span class="cockpit-pill">Risks</span></div>
       </article>
     </div>
   </section>
@@ -2210,14 +2210,14 @@ summary::marker { color:var(--champ-a); }
   <section class="dossier" id="dossier" hidden>
     <div class="verdict-band" id="verdictBand"></div>
 
-    <nav class="tabs" id="tabBar" aria-label="Sezioni di analisi">
-      <button class="tab-btn active" data-tab="overview">Panoramica</button>
-      <button class="tab-btn" data-tab="trajectory">Andamento Partita</button>
-      <button class="tab-btn" data-tab="combat">Combattimento</button>
-      <button class="tab-btn" data-tab="kill">Scontri, morti e taglie</button>
-      <button class="tab-btn" data-tab="economy">Oro, XP e vantaggio</button>
-      <button class="tab-btn" data-tab="objectives">Obiettivi &amp; Torri</button>
-      <button class="tab-btn" data-tab="raw">Tutte le metriche</button>
+    <nav class="tabs" id="tabBar" aria-label="Analysis sections">
+      <button class="tab-btn active" data-tab="overview">Overview</button>
+      <button class="tab-btn" data-tab="trajectory">Match Progression</button>
+      <button class="tab-btn" data-tab="combat">Combat</button>
+      <button class="tab-btn" data-tab="kill">Fights, deaths, and bounties</button>
+      <button class="tab-btn" data-tab="economy">Gold, XP, and advantage</button>
+      <button class="tab-btn" data-tab="objectives">Objectives &amp; Towers</button>
+      <button class="tab-btn" data-tab="raw">All metrics</button>
     </nav>
 
     <div class="tab-panel active" id="panel-overview"></div>
@@ -2230,13 +2230,13 @@ summary::marker { color:var(--champ-a); }
   </section>
 
   <section class="glossary">
-    <h2>Capire i dati senza dover conoscere la statistica</h2>
+    <h2>Understand the data without needing statistical expertise</h2>
     <div id="glossaryList"></div>
   </section>
 
   <footer class="site-footer">
     <span id="footerStats"></span>
-    <span>Dati aggregati da partite ranked · nessuna informazione personale o di singola partita</span>
+    <span>Aggregated data from ranked matches · no personal or individual-match information</span>
   </footer>
 
 </main>

@@ -130,7 +130,7 @@
       version = cached.version;
       filesByName = cached.filesByName;
     } catch (error) {
-      // Storage può essere disabilitato (es. file:// o privacy mode): nessun blocco.
+      // Storage may be disabled (e.g. file:// or privacy mode): do not block.
     }
   }
 
@@ -138,14 +138,14 @@
     try {
       global.localStorage.setItem(CACHE_KEY, JSON.stringify({ version: version, filesByName: filesByName }));
     } catch (error) {
-      // La cache è solo un'ottimizzazione.
+      // The cache is only an optimization.
     }
   }
 
   function loadDataDragon() {
     return fetch(CDN_ROOT + '/api/versions.json', { cache: 'force-cache' })
       .then(function (response) {
-        if (!response.ok) throw new Error('Versioni Data Dragon non disponibili');
+        if (!response.ok) throw new Error('Data Dragon versions unavailable');
         return response.json();
       })
       .then(function (versions) {
@@ -153,7 +153,7 @@
         return fetch(CDN_ROOT + '/cdn/' + encodeURIComponent(version) + '/data/en_US/champion.json', { cache: 'force-cache' });
       })
       .then(function (response) {
-        if (!response.ok) throw new Error('Catalogo campioni Data Dragon non disponibile');
+        if (!response.ok) throw new Error('Data Dragon champion catalog unavailable');
         return response.json();
       })
       .then(function (payload) {
@@ -168,7 +168,7 @@
         writeCache();
       })
       .catch(function () {
-        // Fallback silenzioso: versione incorporata + alias coprono anche uso offline parziale.
+        // Silent fallback: the bundled version + aliases also cover partial offline use.
       })
       .then(function () {
         hydrate(document);

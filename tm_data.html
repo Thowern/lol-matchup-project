@@ -2109,7 +2109,7 @@ html { scroll-padding-top: calc(var(--topbar-height) + var(--space-6)); }
 
 
 
-/* V12 — atlante draft visuale e picker popularity-aware */
+/* V12 — visual draft atlas e picker popularity-aware */
 .topbar-inner { min-height:0 !important; }
 .tabs { z-index:60 !important; background:linear-gradient(180deg,oklch(16.5% .024 240 / .98),oklch(12.5% .020 240 / .98)) !important; }
 .combo-option .meta { max-width:58%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -2466,17 +2466,17 @@ summary::marker { color:var(--champ-a); }
   <div class="topbar-inner">
     <div class="brand" aria-label="Matchup Intelligence">
       <div class="brand-mark"><span>TEAM</span> <span>DRAFT</span><em>LAB</em></div>
-      <div class="brand-tag">analisi draft</div>
+      <div class="brand-tag">draft analysis</div>
     </div>
 
-    <nav class="nav-links" aria-label="Navigazione moduli">
+    <nav class="nav-links" aria-label="Module navigation">
       <a class="nav-link" href="./visual.html">Matchup 1v1</a>
-      <a class="nav-link active" href="./tm_data.html" aria-current="page">Modalità Team</a>
-      <a class="nav-link" href="./rankings.html">Classifiche</a>
+      <a class="nav-link active" href="./tm_data.html" aria-current="page">Team Mode</a>
+      <a class="nav-link" href="./rankings.html">Rankings</a>
       <a class="nav-link" href="./pool.html">Pool Builder</a>
     </nav>
 
-    <div class="data-status-pill loading" id="dataStatus">Caricamento dati</div>
+    <div class="data-status-pill loading" id="dataStatus">Loading data</div>
   </div>
 </header>
 
@@ -2484,17 +2484,17 @@ summary::marker { color:var(--champ-a); }
   <section class="module-hero" aria-labelledby="pageTitle">
     <div class="hero-card">
       <div>
-        <div class="micro-label hero-kicker">Analisi del draft</div>
+        <div class="micro-label hero-kicker">Draft analysis</div>
         <h1 class="hero-title" id="pageTitle"><span class="word-white">Team Draft</span><span class="word-lab">Lab</span></h1>
         <p class="hero-copy">
-          Confronta due composizioni e scopri dove ciascuna squadra può creare vantaggio, quali corsie contano di più e quali rischi evitare.
+          Compare two compositions and discover where each team can create an advantage, which lanes matter most, and which risks to avoid.
         </p>
       </div>
-      <aside class="hero-side" aria-label="Nota metodologica">
+      <aside class="hero-side" aria-label="Methodological note">
         <div class="hero-note">
-          <strong>Una guida per il piano partita, non una previsione:</strong> l’analisi riassume ciò che accade più spesso con questi campioni. Non può sapere come giocheranno le persone e non assegna una probabilità certa di vittoria.
+          <strong>A guide for the game plan, not a prediction:</strong> the analysis summarizes what happens most often with these champions. It cannot know how people will play and does not assign a certain win probability.
         </div>
-        <div class="hero-mini-grid" aria-label="Copertura dataset">
+        <div class="hero-mini-grid" aria-label="Dataset coverage">
           <div class="hero-mini"><span>Matchup</span><strong id="heroDatasetCount">—</strong></div>
           <div class="hero-mini"><span>Vista</span><strong>Draft</strong></div>
         </div>
@@ -2505,16 +2505,16 @@ summary::marker { color:var(--champ-a); }
   <section class="draft-console" aria-labelledby="draftInputTitle">
     <div class="draft-toolbar">
       <div>
-        <div class="micro-label">Composizione squadre</div>
-        <h2 id="draftInputTitle">Seleziona Team 1 e Team 2</h2>
+        <div class="micro-label">Team compositions</div>
+        <h2 id="draftInputTitle">Select Team 1 and Team 2</h2>
         <p>
-          Tutti i valori positivi favoriscono Team 1; quelli negativi favoriscono Team 2. Le descrizioni spiegano sempre come leggere il segnale.
+          All positive values favor Team 1; negative values favor Team 2. The descriptions always explain how to read the signal.
         </p>
       </div>
       <div class="draft-actions">
-        <button class="action-btn" id="swapTeamsBtn" type="button">Inverti team</button>
-        <button class="action-btn danger" id="clearDraftBtn" type="button">Pulisci</button>
-        <button class="action-btn primary" id="analyzeDraftBtn" type="button">Analizza draft</button>
+        <button class="action-btn" id="swapTeamsBtn" type="button">Swap teams</button>
+        <button class="action-btn danger" id="clearDraftBtn" type="button">Clear</button>
+        <button class="action-btn primary" id="analyzeDraftBtn" type="button">Analyze draft</button>
       </div>
     </div>
 
@@ -2538,35 +2538,35 @@ summary::marker { color:var(--champ-a); }
   </section>
 
   <section class="empty-note" id="emptyState">
-    Seleziona almeno una coppia di campioni nella stessa corsia per iniziare.
+    Select at least one pair of champions in the same lane to begin.
   </section>
 
   <section class="output-region" id="analysisRegion" hidden>
     <section class="outlook-hero" id="outlookHero" aria-labelledby="outlookTitle"></section>
 
-    <nav class="tabs" id="tabBar" aria-label="Sezioni di analisi">
-      <button class="tab-btn active" data-tab="overview">Panoramica</button>
-      <button class="tab-btn" data-tab="economy">Oro, XP e vantaggio</button>
-      <button class="tab-btn" data-tab="combat">Combattimento</button>
-      <button class="tab-btn" data-tab="raw">Approfondisci i dati</button>
+    <nav class="tabs" id="tabBar" aria-label="Analysis sections">
+      <button class="tab-btn active" data-tab="overview">Overview</button>
+      <button class="tab-btn" data-tab="economy">Gold, XP, and advantage</button>
+      <button class="tab-btn" data-tab="combat">Combat</button>
+      <button class="tab-btn" data-tab="raw">Explore the data</button>
     </nav>
 
     <div class="tab-panel active" id="panel-overview">
     <section class="section-card visual-summary" aria-labelledby="visualSummaryTitle">
       <div class="section-head">
         <div>
-          <div class="micro-label">Lettura rapida</div>
-          <h2 id="visualSummaryTitle">Dove nasce il vantaggio</h2>
-          <p>Guarda subito quali corsie favoriscono un team e quali aspetti del draft pesano di più.</p>
+          <div class="micro-label">Quick analysis</div>
+          <h2 id="visualSummaryTitle">Where the advantage comes from</h2>
+          <p>See immediately which lanes favor a team and which aspects of the draft matter most.</p>
         </div>
       </div>
       <div class="visual-grid">
         <div class="visual-panel pressure-panel">
-          <div class="visual-panel-head"><h3>Vantaggio per corsia</h3><span>forza</span></div>
+          <div class="visual-panel-head"><h3>Advantage by lane</h3><span>strength</span></div>
           <div class="lane-pressure-map" id="lanePressureMap"></div>
         </div>
         <div class="visual-panel">
-          <div class="visual-panel-head"><h3>Segnali principali</h3><span>forza</span></div>
+          <div class="visual-panel-head"><h3>Main signals</h3><span>strength</span></div>
           <div class="heatmap-grid" id="draftHeatmap"></div>
         </div>
       </div>
@@ -2574,9 +2574,9 @@ summary::marker { color:var(--champ-a); }
     <section class="section-card" aria-labelledby="laneMatrixTitle">
       <div class="section-head">
         <div>
-          <div class="micro-label">Dettaglio corsie</div>
-          <h2 id="laneMatrixTitle">Come stanno le cinque corsie</h2>
-          <p>Per ogni ruolo trovi il lato favorito e i pochi dati che spiegano davvero perché.</p>
+          <div class="micro-label">Lane details</div>
+          <h2 id="laneMatrixTitle">How the five lanes compare</h2>
+          <p>For each role, you will find the favored side and the few data points that truly explain why.</p>
         </div>
       </div>
       <div class="lane-matrix" id="laneMatrix"></div>
@@ -2584,9 +2584,9 @@ summary::marker { color:var(--champ-a); }
     <section class="section-card" aria-labelledby="insightTitle">
       <div class="section-head">
         <div>
-          <div class="micro-label">Interpretazione</div>
-          <h2 id="insightTitle">Cosa significa in partita</h2>
-          <p>Consigli pratici ricavati dai segnali più forti e affidabili del draft.</p>
+          <div class="micro-label">Interpretation</div>
+          <h2 id="insightTitle">What it means in the match</h2>
+          <p>Practical advice derived from the draft's strongest and most reliable signals.</p>
         </div>
       </div>
       <div class="insight-list" id="insightList"></div>
@@ -2597,9 +2597,9 @@ summary::marker { color:var(--champ-a); }
     <section class="section-card snowball-section" aria-labelledby="snowballTitle">
       <div class="section-head">
         <div>
-          <div class="micro-label">Vantaggio iniziale</div>
-          <h2 id="snowballTitle">Quanto conta ottenere il primo vantaggio</h2>
-          <p>Mostra quanto cambia l’esito della partita quando una corsia arriva avanti o indietro al minuto 15.</p>
+          <div class="micro-label">Early advantage</div>
+          <h2 id="snowballTitle">How much obtaining the first advantage matters</h2>
+          <p>Shows how the match outcome changes when a lane is ahead or behind at 15 minutes.</p>
         </div>
       </div>
       <div class="snowball-panel" id="snowballPanel"></div>
@@ -2607,11 +2607,11 @@ summary::marker { color:var(--champ-a); }
     <section class="section-card" aria-labelledby="timelineTitle">
       <div class="section-head">
         <div>
-          <div class="micro-label">Andamento della partita</div>
-          <h2 id="timelineTitle">Oro, XP e vantaggio specifico dei matchup</h2>
-          <p>Le curve sommano solo le corsie con dati diretti. La modalità “specifica” mostra ciò che va oltre la forza abituale dei campioni.</p>
+          <div class="micro-label">Match progression</div>
+          <h2 id="timelineTitle">Gold, XP, and matchup-specific advantage</h2>
+          <p>The curves aggregate only lanes with direct data. “Specific” mode shows what goes beyond the champions' typical strength.</p>
         </div>
-        <div class="timeline-controls" id="timelineControls" role="tablist" aria-label="Metrica timeline"></div>
+        <div class="timeline-controls" id="timelineControls" role="tablist" aria-label="Timeline metric"></div>
       </div>
       <div class="timeline-note" id="timelineNote"></div>
       <div class="timeline-chart" id="timelineChart"></div>
@@ -2623,9 +2623,9 @@ summary::marker { color:var(--champ-a); }
     <section class="section-card" aria-labelledby="teamProfileTitle">
       <div class="section-head">
         <div>
-          <div class="micro-label">Identità delle squadre</div>
-          <h2 id="teamProfileTitle">Come vogliono giocare le due squadre</h2>
-          <p>Prima trovi una sintesi rapida dei fight, poi l’identità delle squadre e infine il dettaglio essenziale spiegato in modo semplice.</p>
+          <div class="micro-label">Team identities</div>
+          <h2 id="teamProfileTitle">How the two teams want to play</h2>
+          <p>First you will find a quick fight summary, then the teams' identities, and finally the essential details explained simply.</p>
         </div>
       </div>
       <div class="damage-layout">
@@ -2636,9 +2636,9 @@ summary::marker { color:var(--champ-a); }
     <section class="section-card advanced-intelligence-section" aria-labelledby="advancedMetricsTitle">
       <div class="section-head">
         <div>
-          <div class="micro-label">Lettura avanzata</div>
-          <h2 id="advancedMetricsTitle">Quanto è solido il vantaggio e come può cambiare</h2>
-          <p>Qui trovi quanto il vantaggio dipende dalle taglie, quanto viene trasformato in obiettivi, quanto varia tra le partite e quali corsie possono ribaltarsi più facilmente.</p>
+          <div class="micro-label">Advanced analysis</div>
+          <h2 id="advancedMetricsTitle">How solid the advantage is and how it can change</h2>
+          <p>Here you can see how much the advantage depends on bounties, how well it converts into objectives, how much it varies between matches, and which lanes can swing most easily.</p>
         </div>
       </div>
       <div id="advancedMetrics"></div>
@@ -2646,9 +2646,9 @@ summary::marker { color:var(--champ-a); }
     <section class="section-card" aria-labelledby="killPhaseTitle">
       <div class="section-head">
         <div>
-          <div class="micro-label">Combattimenti nel tempo</div>
-          <h2 id="killPhaseTitle">Kill, morti e taglie nelle diverse fasi</h2>
-          <p>Guarda come cambiano scontri e taglie nelle varie fasi, senza sovraccaricare la lettura: pochi segnali, ma chiari.</p>
+          <div class="micro-label">Combat over time</div>
+          <h2 id="killPhaseTitle">Kills, deaths, and bounties across phases</h2>
+          <p>See how fights and bounties change through the different phases without overloading the analysis: few signals, but clear ones.</p>
         </div>
       </div>
       <div class="phase-team-list" id="killPhaseTeam"></div>
@@ -2656,9 +2656,9 @@ summary::marker { color:var(--champ-a); }
     <section class="section-card" aria-labelledby="radarTitle">
       <div class="section-head">
         <div>
-          <div class="micro-label">Confronto generale</div>
-          <h2 id="radarTitle">Punti forti delle due squadre</h2>
-          <p>Una vista compatta da 0 a 100: più il valore è alto, più quella caratteristica è presente nella composizione.</p>
+          <div class="micro-label">Overall comparison</div>
+          <h2 id="radarTitle">Strengths of both teams</h2>
+          <p>A compact 0–100 view: the higher the value, the more strongly that characteristic is represented in the composition.</p>
         </div>
       </div>
       <div class="radar-wrap" id="teamRadar"></div>
@@ -2669,9 +2669,9 @@ summary::marker { color:var(--champ-a); }
     <section class="section-card" aria-labelledby="warningTitle">
       <div class="section-head">
         <div>
-          <div class="micro-label">Affidabilità</div>
-          <h2 id="warningTitle">Affidabilità</h2>
-          <p>Qui segnaliamo corsie con poche partite, stime basate sul profilo generale o dati mancanti.</p>
+          <div class="micro-label">Reliability</div>
+          <h2 id="warningTitle">Reliability</h2>
+          <p>Here we flag lanes with few matches, estimates based on general profiles, or missing data.</p>
         </div>
       </div>
       <div class="warning-list" id="warningList"></div>
@@ -2679,9 +2679,9 @@ summary::marker { color:var(--champ-a); }
     <section class="section-card" aria-labelledby="datasetAuditTitle">
       <div class="section-head">
         <div>
-          <div class="micro-label">Tutti i dati</div>
-          <h2 id="datasetAuditTitle">Esplora tutte le metriche</h2>
-          <p>Una sezione completa per chi vuole approfondire. Ogni metrica include un nome leggibile e una breve spiegazione.</p>
+          <div class="micro-label">All data</div>
+          <h2 id="datasetAuditTitle">Explore every metric</h2>
+          <p>A complete section for deeper analysis. Each metric includes a readable name and a brief explanation.</p>
         </div>
       </div>
       <div id="datasetAudit"></div>
@@ -2694,26 +2694,26 @@ summary::marker { color:var(--champ-a); }
   <section class="section-card draft-glossary" aria-labelledby="draftGlossaryTitle">
     <div class="section-head">
       <div>
-        <div class="micro-label">Parole usate nell’analisi</div>
-        <h2 id="draftGlossaryTitle">Come leggere i dati</h2>
-        <p>Le definizioni essenziali per trasformare i numeri in un piano partita.</p>
+        <div class="micro-label">Terms used in the analysis</div>
+        <h2 id="draftGlossaryTitle">How to read the data</h2>
+        <p>The essential definitions for turning numbers into a game plan.</p>
       </div>
     </div>
     <div class="draft-glossary-grid">
-      <article class="draft-term"><strong>Vantaggio specifico del matchup</strong><p>La parte di oro, XP o scambi che nasce dagli accoppiamenti scelti, oltre alla forza abituale dei campioni.</p></article>
-      <article class="draft-term"><strong>Peso del primo vantaggio</strong><p>Quanto cambia la percentuale di vittorie quando una corsia arriva avanti invece che indietro al minuto 15.</p></article>
-      <article class="draft-term"><strong>Saldo kill-morti</strong><p>Confronta le kill ottenute con le morti subite. Un valore positivo favorisce Team 1; uno negativo Team 2.</p></article>
-      <article class="draft-term"><strong>Saldo delle taglie</strong><p>L’oro extra guadagnato con le kill e con le taglie importanti, meno quello regalato morendo con una taglia.</p></article>
-      <article class="draft-term"><strong>Variabilità</strong><p>Quanto le partite con gli stessi matchup possono prendere direzioni diverse. Alta variabilità richiede un piano più flessibile.</p></article>
-      <article class="draft-term"><strong>Rischio di rimonta</strong><p>Quanto oro una squadra può restituire quando muore un campione con una taglia importante. Non misura la probabilità di rimonta: indica soltanto quanto valore è esposto.</p></article>
-      <article class="draft-term"><strong>Confronto con gli altri campioni del ruolo</strong><p>Posizione da 0 a 100 rispetto agli altri campioni dello stesso ruolo. Più alto significa più sopra la media in quella caratteristica.</p></article>
-      <article class="draft-term"><strong>Bilancio del draft</strong><p>Sintesi da −1 a +1 di corsie, risorse, scontri, taglie, obiettivi e profili dei campioni. Vicino a 0 indica equilibrio. Non è una percentuale di vittoria: serve a capire da dove può nascere il vantaggio.</p></article>
+      <article class="draft-term"><strong>Matchup-specific advantage</strong><p>The portion of gold, XP, or trades produced by the selected matchups, beyond the champions' typical strength.</p></article>
+      <article class="draft-term"><strong>Impact of the first advantage</strong><p>How much the win rate changes when a lane is ahead rather than behind at 15 minutes.</p></article>
+      <article class="draft-term"><strong>Kill-death balance</strong><p>Compares kills secured with deaths suffered. A positive value favors Team 1; a negative value favors Team 2.</p></article>
+      <article class="draft-term"><strong>Bounty balance</strong><p>The extra gold gained from kills and major bounties, minus the gold given away by dying with a bounty.</p></article>
+      <article class="draft-term"><strong>Variability</strong><p>How much matches with the same matchups can develop in different directions. High variability requires a more flexible plan.</p></article>
+      <article class="draft-term"><strong>Comeback risk</strong><p>How much gold a team can return when a champion with a major bounty dies. It does not measure comeback probability; it only indicates how much value is exposed.</p></article>
+      <article class="draft-term"><strong>Comparison with other champions in the role</strong><p>Position from 0 to 100 relative to other champions in the same role. A higher value means further above average in that characteristic.</p></article>
+      <article class="draft-term"><strong>Draft balance</strong><p>A −1 to +1 summary of lanes, resources, fights, bounties, objectives, and champion profiles. A value near 0 indicates balance. It is not a win percentage: it helps explain where an advantage can originate.</p></article>
     </div>
   </section>
 
   <footer class="site-footer">
-    <span id="footerStats">Team DraftLab · confronto corsia per corsia</span>
-    <span>I dati aiutano a preparare il piano partita: non sostituiscono le decisioni dei giocatori.</span>
+    <span id="footerStats">Team DraftLab · lane-by-lane comparison</span>
+    <span>The data helps prepare the game plan; it does not replace player decisions.</span>
   </footer>
 </main>
 

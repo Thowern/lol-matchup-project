@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Costruisci una champion pool per ruolo usando copertura matchup, controllo delle debolezze, varietà del danno e affidabilità statistica.">
+<meta name="description" content="Build a champion pool for each role using matchup coverage, weakness control, damage variety, and statistical reliability.">
 <title>Pool Builder Lab — Champion Pool Intelligence</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1231,7 +1231,7 @@ html { scroll-padding-top: calc(var(--topbar-height) + var(--space-6)); }
 
 
 
-/* V12 — atlante visuale, fasi grafiche e flusso keyboard-first */
+/* V12 — visual atlas, graphical phases, and keyboard-first flow */
 .topbar-inner { min-height: 0 !important; }
 
 .atlas-name.a,.atlas-dual-row strong:first-of-type { color:var(--champ-a); }
@@ -1621,9 +1621,9 @@ summary::marker { color:var(--champ-a); }
 .pool-field { position:relative; z-index:20; }
 .pool-field:focus-within,
 .pool-field.combo-open { z-index:1000; }
-/* La lista deve uscire dal livello del singolo step e della card. La classe
-   combo-open viene gestita anche da JavaScript, così il fix non dipende solo
-   dal supporto del selettore :has(). */
+/* The list must escape the level of the individual step and card. The
+   combo-open class is also managed by JavaScript, so the fix does not depend solely
+   on support for the :has() selector. */
 .builder-step.combo-open,
 .builder-step:has(.pool-field:focus-within),
 .builder-step:has(.pool-field.combo-open) { position:relative; z-index:950; }
@@ -2200,13 +2200,13 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
       <div class="brand-mark"><span>POOL</span> <span>BUILDER</span><em>LAB</em></div>
       <div class="brand-tag">champion pool</div>
     </div>
-    <nav class="nav-links" aria-label="Navigazione moduli">
+    <nav class="nav-links" aria-label="Module navigation">
       <a class="nav-link" href="./visual.html">Matchup 1v1</a>
-      <a class="nav-link" href="./tm_data.html">Modalità Team</a>
-      <a class="nav-link" href="./rankings.html">Classifiche</a>
+      <a class="nav-link" href="./tm_data.html">Team Mode</a>
+      <a class="nav-link" href="./rankings.html">Rankings</a>
       <a class="nav-link active" href="./pool.html" aria-current="page">Pool Builder</a>
     </nav>
-    <div class="data-status-pill loading" id="dataStatus">Caricamento dati</div>
+    <div class="data-status-pill loading" id="dataStatus">Loading data</div>
   </div>
 </header>
 
@@ -2216,21 +2216,21 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
       <div class="hero-main">
         <div class="micro-label hero-kicker">Champion Pool Intelligence</div>
         <h1 class="hero-title" id="pageTitle"><span class="word-white">Pool Builder</span> <span class="word-lab">Lab</span></h1>
-        <p class="hero-copy">Costruisci una champion pool che copra davvero la lane. Dopo ogni scelta il sistema combina copertura dei matchup, coda delle debolezze peggiori, forza generale, varietà del danno e affidabilità, poi ordina i campioni che aggiungono più valore reale.</p>
-        <div class="hero-step-grid" aria-label="Flusso di costruzione">
-          <div class="hero-step"><span>01 · Imposta</span><strong>Lane e dimensione</strong><em>Decidi il ruolo e quanti campioni vuoi inserire.</em></div>
-          <div class="hero-step"><span>02 · Scegli</span><strong>Un pick alla volta</strong><em>Usa i consigli oppure inserisci liberamente il tuo campione.</em></div>
-          <div class="hero-step"><span>03 · Verifica</span><strong>Copertura reale</strong><em>Controlla falle, ridondanze e composizione del danno.</em></div>
+        <p class="hero-copy">Build a champion pool that truly covers the lane. After each selection, the system combines matchup coverage, the tail of the worst weaknesses, overall strength, damage variety, and reliability, then ranks the champions that add the most real value.</p>
+        <div class="hero-step-grid" aria-label="Build flow">
+          <div class="hero-step"><span>01 · Set up</span><strong>Lane and size</strong><em>Choose the role and how many champions you want to include.</em></div>
+          <div class="hero-step"><span>02 · Choose</span><strong>One pick at a time</strong><em>Use the recommendations or freely enter your own champion.</em></div>
+          <div class="hero-step"><span>03 · Verify</span><strong>Actual coverage</strong><em>Check gaps, redundancies, and damage composition.</em></div>
         </div>
       </div>
-      <aside class="hero-side" aria-label="Metodo Pool Builder">
-        <div class="hero-note"><strong>Valutazione della pool, non del giocatore:</strong> il punteggio misura la completezza statistica delle scelte. Non conosce la tua padronanza, il tempo di apprendimento o le preferenze personali.</div>
+      <aside class="hero-side" aria-label="Pool Builder method">
+        <div class="hero-note"><strong>Pool evaluation, not player evaluation:</strong> the score measures the statistical completeness of the selections. It does not know your mastery, learning time, or personal preferences.</div>
         <div class="hero-mini-grid">
-          <div class="hero-mini"><span>Lane disponibili</span><strong id="heroRoleCount">—</strong><small>Ruoli presenti nel dataset.</small></div>
-          <div class="hero-mini"><span>Campioni nella lane</span><strong id="heroChampionCount">—</strong><small>Aggiornato quando selezioni il ruolo.</small></div>
-          <div class="hero-mini"><span>Filtro candidati</span><strong id="heroFilterMode">—</strong><small>Soglia configurabile in <code>pool.config.js</code>.</small></div>
+          <div class="hero-mini"><span>Available lanes</span><strong id="heroRoleCount">—</strong><small>Roles available in the dataset.</small></div>
+          <div class="hero-mini"><span>Champions in the lane</span><strong id="heroChampionCount">—</strong><small>Updated when you select the role.</small></div>
+          <div class="hero-mini"><span>Candidate filter</span><strong id="heroFilterMode">—</strong><small>Configurable threshold in <code>pool.config.js</code>.</small></div>
         </div>
-        <div class="hero-rail-card"><span class="rail-dot a"></span><span class="rail-line"></span><span class="rail-dot b"></span><p><strong>Principio guida:</strong> il builder non cerca soltanto campioni forti. Premia il valore marginale del nuovo pick, riduce l’impatto dei campioni piccoli e conserva peso per i matchup peggiori.</p></div>
+        <div class="hero-rail-card"><span class="rail-dot a"></span><span class="rail-line"></span><span class="rail-dot b"></span><p><strong>Guiding principle:</strong> the builder does not look only for strong champions. It rewards the marginal value of the new pick, reduces the impact of small samples, and preserves weight for the worst matchups.</p></div>
       </aside>
     </div>
   </section>
@@ -2239,53 +2239,53 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
   <section class="pool-work-card quick-counter-lab" aria-labelledby="quickCounterTitle">
     <div class="quick-counter-intro">
       <div>
-        <div class="micro-label pool-card-kicker">Analisi immediata</div>
-        <h2 id="quickCounterTitle">Incolla una pool e genera la tabella</h2>
-        <p>Non devi avviare il builder. Indica prima la lane, poi separa i campioni con <strong>/</strong>, virgole o righe nuove.</p>
+        <div class="micro-label pool-card-kicker">Instant analysis</div>
+        <h2 id="quickCounterTitle">Paste a pool and generate the table</h2>
+        <p>You do not need to start the builder. Specify the lane first, then separate champions with <strong>/</strong>, commas, or new lines.</p>
       </div>
-      <div class="quick-format-example"><span>Formato</span><code>TOP — Singed / Irelia / Nasus</code></div>
+      <div class="quick-format-example"><span>Format</span><code>TOP — Singed / Irelia / Nasus</code></div>
     </div>
 
     <div class="quick-input-grid">
       <label class="quick-paste-field" for="quickPoolInput">
-        <span>Lane e champion pool</span>
+        <span>Lane and champion pool</span>
         <textarea id="quickPoolInput" rows="3" spellcheck="false" placeholder="TOP — Singed / Irelia / Nasus"></textarea>
-        <small>Scorciatoia: Ctrl/⌘ + Invio per generare.</small>
+        <small>Shortcut: Ctrl/⌘ + Enter to generate.</small>
       </label>
       <div class="quick-help-card">
-        <strong>Alias riconosciuti</strong>
+        <strong>Recognized aliases</strong>
         <p><code>TOP</code>, <code>JUNGLE/JGL</code>, <code>MID</code>, <code>BOT/ADC</code>, <code>SUPPORT/SUPP</code>.</p>
-        <p>I campioni non trovati nella lane vengono ignorati e segnalati senza bloccare gli altri.</p>
+        <p>Champions not found in the lane are ignored and reported without blocking the others.</p>
       </div>
     </div>
 
     <div class="quick-action-row">
-      <button id="quickAnalyzeBtn" class="primary" type="button">Genera la tabella</button>
-      <button id="quickExampleBtn" class="ghost" type="button">Usa l’esempio</button>
-      <button id="quickClearBtn" class="ghost" type="button">Pulisci</button>
+      <button id="quickAnalyzeBtn" class="primary" type="button">Generate the table</button>
+      <button id="quickExampleBtn" class="ghost" type="button">Use example</button>
+      <button id="quickClearBtn" class="ghost" type="button">Clear</button>
     </div>
     <p id="quickPoolValidation" class="quick-validation" hidden></p>
 
-    <section id="quickCounterResults" class="quick-counter-results" hidden aria-label="Tabella counter rapida">
+    <section id="quickCounterResults" class="quick-counter-results" hidden aria-label="Quick counter table">
       <div class="counter-toolbar quick-counter-toolbar">
-        <label class="counter-control"><span>Campioni analizzati</span><select id="quickScopeSelect"><option value="q50">Q50</option><option value="all">Tutti</option></select></label>
-        <label class="counter-control"><span>Ordina la pool per</span><select id="quickMetricSelect"><option value="wilson">Wilson prudenziale</option><option value="decision">Indice Pool Builder</option><option value="winrate">Win rate matchup</option><option value="diff">Scarto dal WR abituale</option><option value="games">Numero di partite</option></select></label>
-        <label id="quickConfidenceField" class="counter-control"><span>Prudenza Wilson</span><select id="quickConfidenceSelect"><option value="90">90% · esplorativo</option><option value="95">95% · bilanciato</option><option value="99" selected>99% · prudente</option></select></label>
-        <label class="counter-control"><span>Cerca nella tabella</span><input id="quickSearchInput" type="search" autocomplete="off" placeholder="Es. Darius"></label>
+        <label class="counter-control"><span>Champions analyzed</span><select id="quickScopeSelect"><option value="q50">Q50</option><option value="all">All</option></select></label>
+        <label class="counter-control"><span>Sort the pool by</span><select id="quickMetricSelect"><option value="wilson">Conservative Wilson</option><option value="decision">Pool Builder Index</option><option value="winrate">Win rate matchup</option><option value="diff">Difference from usual WR</option><option value="games">Number of matches</option></select></label>
+        <label id="quickConfidenceField" class="counter-control"><span>Wilson conservatism</span><select id="quickConfidenceSelect"><option value="90">90% · exploratory</option><option value="95">95% · balanced</option><option value="99" selected>99% · conservative</option></select></label>
+        <label class="counter-control"><span>Search the table</span><input id="quickSearchInput" type="search" autocomplete="off" placeholder="E.g. Darius"></label>
       </div>
 
       <div class="quick-results-head">
         <div>
           <div id="quickCounterSummary" class="counter-summary"></div>
-          <p class="counter-metric-note">La ricerca filtra le righe della tabella; il CSV scaricato contiene esattamente le righe visibili.</p>
+          <p class="counter-metric-note">The search filters the table rows; the downloaded CSV contains exactly the visible rows.</p>
         </div>
         <div class="quick-result-actions">
           <span id="quickCounterCount" class="reco-count">—</span>
-          <button id="quickDownloadBtn" class="secondary" type="button" disabled>Scarica CSV</button>
+          <button id="quickDownloadBtn" class="secondary" type="button" disabled>Download CSV</button>
         </div>
       </div>
 
-      <div class="quick-table-wrap" tabindex="0" aria-label="Tabella scorrevole dei counter">
+      <div class="quick-table-wrap" tabindex="0" aria-label="Scrollable counter table">
         <table id="quickCounterTable" class="quick-counter-table">
           <thead id="quickCounterTableHead"></thead>
           <tbody id="quickCounterTableBody"></tbody>
@@ -2295,57 +2295,57 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
   </section>
 
   <div class="pool-builder-grid">
-    <aside class="pool-setup-card" aria-label="Configurazione champion pool">
+    <aside class="pool-setup-card" aria-label="Champion pool configuration">
       <div class="pool-card-head">
         <div>
-          <div class="micro-label pool-card-kicker">Configurazione</div>
-          <h2>Imposta la pool</h2>
-          <p>La soglia Rigorosa e i consigli vengono ricalcolati per la lane selezionata.</p>
+          <div class="micro-label pool-card-kicker">Configuration</div>
+          <h2>Set up the pool</h2>
+          <p>The Rigorous threshold and recommendations are recalculated for the selected lane.</p>
         </div>
       </div>
 
       <section class="builder-step">
         <div class="builder-step-head"><span class="step-num">1</span><strong>Lane</strong></div>
-        <div id="roleGrid" class="role-grid" aria-label="Seleziona la lane"></div>
+        <div id="roleGrid" class="role-grid" aria-label="Select the lane"></div>
       </section>
 
       <section class="builder-step">
-        <div class="builder-step-head"><span class="step-num">2</span><strong>Numero di campioni</strong></div>
-        <div id="sizeGrid" class="size-grid" aria-label="Dimensione della pool"></div>
+        <div class="builder-step-head"><span class="step-num">2</span><strong>Number of champions</strong></div>
+        <div id="sizeGrid" class="size-grid" aria-label="Pool size"></div>
       </section>
 
       <section class="builder-step">
-        <div class="builder-step-head"><span class="step-num">3</span><strong>Primo campione</strong><em>facoltativo</em></div>
+        <div class="builder-step-head"><span class="step-num">3</span><strong>First champion</strong><em>optional</em></div>
         <div id="firstCombo" class="pool-field">
-          <label class="sr-only" for="firstChampion">Primo campione</label>
-          <input id="firstChampion" class="pool-input" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Lascia vuoto per il migliore WR">
-          <button class="clear-field" type="button" data-clear="firstChampion" aria-label="Cancella il primo campione">×</button>
+          <label class="sr-only" for="firstChampion">First champion</label>
+          <input id="firstChampion" class="pool-input" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Leave blank for the best WR">
+          <button class="clear-field" type="button" data-clear="firstChampion" aria-label="Clear the first champion">×</button>
           <div class="combo-list" role="listbox" hidden></div>
         </div>
-        <p class="field-hint">Se il campo resta vuoto, parte il campione con il miglior equilibrio configurato tra forza generale e affidabilità.</p>
-        <p id="firstValidation" class="field-validation" hidden>Seleziona un campione presente nell’elenco oppure lascia il campo completamente vuoto.</p>
-        <div id="thresholdBox" class="threshold-box">Seleziona una lane per calcolare la soglia.</div>
+        <p class="field-hint">If the field is left empty, the champion with the best configured balance between overall strength and reliability is selected first.</p>
+        <p id="firstValidation" class="field-validation" hidden>Select a champion from the list or leave the field completely empty.</p>
+        <div id="thresholdBox" class="threshold-box">Select a lane to calculate the threshold.</div>
       </section>
 
-      <button id="startBtn" class="primary" type="button" disabled>Costruisci la pool</button>
-      <div id="methodStrip" class="pool-method-strip" aria-label="Pesi principali della valutazione finale"></div>
+      <button id="startBtn" class="primary" type="button" disabled>Build the pool</button>
+      <div id="methodStrip" class="pool-method-strip" aria-label="Main weights of the final evaluation"></div>
     </aside>
 
     <section id="workspace" class="pool-workspace">
       <div id="emptyState" class="empty-state pool-empty-state">
         <div class="pool-empty-monogram">PB</div>
-        <h3>La costruzione parte dalla lane.</h3>
-        <p>Configura la pool. I matchup senza dati resteranno sconosciuti: non vengono sostituiti con stime artificiali e riducono l’indice di affidabilità.</p>
+        <h3>Pool building starts with the lane.</h3>
+        <p>Configure the pool. Matchups without data will remain unknown: they are not replaced with artificial estimates and reduce the reliability index.</p>
       </div>
 
       <section id="poolPanel" class="pool-work-card" hidden>
         <div class="pool-top">
           <div>
-            <div class="micro-label pool-card-kicker">Pool corrente</div>
-            <h2 id="poolTitle">La tua pool</h2>
+            <div class="micro-label pool-card-kicker">Current pool</div>
+            <h2 id="poolTitle">Your pool</h2>
             <p id="poolSubtitle"></p>
           </div>
-          <div class="pool-actions"><button id="undoBtn" class="ghost" type="button">Rimuovi ultimo</button><button id="resetBtn" class="ghost" type="button">Ricomincia</button></div>
+          <div class="pool-actions"><button id="undoBtn" class="ghost" type="button">Remove last</button><button id="resetBtn" class="ghost" type="button">Start over</button></div>
         </div>
         <div id="slots" class="slots"></div>
         <div id="damageNotice" class="notice"></div>
@@ -2355,22 +2355,22 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
 
       <section id="recommendationPanel" class="pool-work-card" hidden>
         <div class="reco-head">
-          <div><div class="micro-label pool-card-kicker">Valore marginale</div><h2>Prossimi campioni consigliati</h2><p>Ordinati in base a quanto migliorano la pool attuale, non soltanto per forza individuale.</p></div>
+          <div><div class="micro-label pool-card-kicker">Marginal value</div><h2>Recommended next champions</h2><p>Ranked by how much they improve the current pool, not only by individual strength.</p></div>
           <div id="recoCount" class="reco-count"></div>
         </div>
         <div id="recommendations" class="recommendations"></div>
       </section>
 
       <section id="customPanel" class="pool-work-card" hidden>
-        <div class="pool-card-head"><div><div class="micro-label pool-card-kicker">Scelta personale</div><h2>Oppure scegli tu</h2><p>Puoi aggiungere qualsiasi campione disponibile nella lane. Le scelte sotto soglia restano ammesse ma vengono segnalate come meno affidabili.</p></div></div>
+        <div class="pool-card-head"><div><div class="micro-label pool-card-kicker">Personal choice</div><h2>Or choose manually</h2><p>You can add any champion available in the lane. Below-threshold choices remain allowed but are flagged as less reliable.</p></div></div>
         <div class="custom-row">
           <div id="customCombo" class="pool-field">
-            <label class="sr-only" for="customChampion">Campione personalizzato</label>
-            <input id="customChampion" class="pool-input" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Cerca un campione">
-            <button class="clear-field" type="button" data-clear="customChampion" aria-label="Cancella il campione personalizzato">×</button>
+            <label class="sr-only" for="customChampion">Custom champion</label>
+            <input id="customChampion" class="pool-input" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Search for a champion">
+            <button class="clear-field" type="button" data-clear="customChampion" aria-label="Clear the custom champion">×</button>
             <div class="combo-list" role="listbox" hidden></div>
           </div>
-          <button id="addCustomBtn" class="secondary" type="button" disabled>Aggiungi</button>
+          <button id="addCustomBtn" class="secondary" type="button" disabled>Add</button>
         </div>
         <div id="customPreview" class="preview" hidden></div>
       </section>
@@ -2379,16 +2379,16 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
         <div class="ban-recommendation-head">
           <div>
             <div class="micro-label pool-card-kicker">Draft protection</div>
-            <h2>Ban consigliati</h2>
-            <p>Individua gli avversari più pericolosi per il campione o la pool corrente. Se il matchup più sensibile allo snowball resta favorevole alla pool sia per WR sia per WR diff, il candidato viene escluso.</p>
+            <h2>Recommended bans</h2>
+            <p>Identifies the most dangerous opponents for the current champion or pool. If the matchup most sensitive to snowballing still favors the pool in both WR and WR difference, the candidate is excluded.</p>
           </div>
           <div id="banResultCount" class="reco-count">—</div>
         </div>
 
-        <div class="counter-toolbar ban-toolbar" aria-label="Opzioni consiglio ban">
-          <label class="counter-control"><span>Campioni candidati</span><select id="banScopeSelect"><option value="q50">Q50</option><option value="all">Tutti</option></select></label>
-          <label class="counter-control"><span>Risultati mostrati</span><select id="banLimitSelect"><option value="5">Top 5</option><option value="10" selected>Top 10</option><option value="15">Top 15</option><option value="20">Top 20</option></select></label>
-          <div class="ban-priority-note"><span><strong>Ordinamento:</strong> indice ban finale dal più alto al più basso. WR/WR diff, partite totali e snowball contribuiscono al punteggio secondo i pesi configurati.</span></div>
+        <div class="counter-toolbar ban-toolbar" aria-label="Ban recommendation options">
+          <label class="counter-control"><span>Candidate champions</span><select id="banScopeSelect"><option value="q50">Q50</option><option value="all">All</option></select></label>
+          <label class="counter-control"><span>Results shown</span><select id="banLimitSelect"><option value="5">Top 5</option><option value="10" selected>Top 10</option><option value="15">Top 15</option><option value="20">Top 20</option></select></label>
+          <div class="ban-priority-note"><span><strong>Sorting:</strong> final ban index from highest to lowest. WR/WR difference, total matches, and snowballing contribute to the score according to the configured weights.</span></div>
         </div>
 
         <div id="banRecommendationSummary" class="counter-summary"></div>
@@ -2401,17 +2401,17 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
         <div class="counter-coverage-head">
           <div>
             <div class="micro-label pool-card-kicker">Pool vs lane</div>
-            <h2>Copertura counter della pool</h2>
-            <p>Per ogni campione del ruolo mostra quale pick della tua pool lo affronta meglio. Le righe includono anche i campioni già scelti, ma un campione non viene mai confrontato contro sé stesso.</p>
+            <h2>Pool counter coverage</h2>
+            <p>For each champion in the role, shows which pick in your pool performs best against them. The rows also include champions already selected, but a champion is never compared against itself.</p>
           </div>
           <div id="counterResultCount" class="reco-count">—</div>
         </div>
 
-        <div class="counter-toolbar" aria-label="Opzioni copertura counter">
-          <label class="counter-control"><span>Campioni analizzati</span><select id="counterScopeSelect"><option value="q50">Q50</option><option value="all">Tutti</option></select></label>
-          <label class="counter-control"><span>Ordina la pool per</span><select id="counterMetricSelect"><option value="wilson">Wilson prudenziale</option><option value="decision">Indice Pool Builder</option><option value="winrate">Win rate matchup</option><option value="diff">Scarto dal WR abituale</option><option value="games">Numero di partite</option></select></label>
-          <label id="counterConfidenceField" class="counter-control"><span>Prudenza Wilson</span><select id="counterConfidenceSelect"><option value="90">90% · esplorativo</option><option value="95">95% · bilanciato</option><option value="99" selected>99% · prudente</option></select></label>
-          <label class="counter-control counter-search"><span>Filtra campione</span><input id="counterSearchInput" type="search" autocomplete="off" placeholder="Cerca nella lane"></label>
+        <div class="counter-toolbar" aria-label="Counter-coverage options">
+          <label class="counter-control"><span>Champions analyzed</span><select id="counterScopeSelect"><option value="q50">Q50</option><option value="all">All</option></select></label>
+          <label class="counter-control"><span>Sort the pool by</span><select id="counterMetricSelect"><option value="wilson">Conservative Wilson</option><option value="decision">Pool Builder Index</option><option value="winrate">Win rate matchup</option><option value="diff">Difference from usual WR</option><option value="games">Number of matches</option></select></label>
+          <label id="counterConfidenceField" class="counter-control"><span>Wilson conservatism</span><select id="counterConfidenceSelect"><option value="90">90% · exploratory</option><option value="95">95% · balanced</option><option value="99" selected>99% · conservative</option></select></label>
+          <label class="counter-control counter-search"><span>Filter champion</span><input id="counterSearchInput" type="search" autocomplete="off" placeholder="Search the lane"></label>
         </div>
 
         <div id="counterCoverageSummary" class="counter-summary"></div>
