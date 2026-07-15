@@ -646,7 +646,6 @@
     const unknownThreatPrior = clamp(safeNumber(banConfig.unknownThreatPrior) ?? neutralThreat, 0, 1);
     const fullSnowballAt = Math.max(0.01, safeNumber(banConfig.fullSnowballAt) ?? 0.25);
     const safeAnswerThreatMax = clamp(safeNumber(banConfig.safeAnswerThreatMax) ?? 0.525, 0, 1);
-    const popularityGateFloor = clamp(safeNumber(banConfig.popularityThreatGateFloor) ?? 0.20, 0, 1);
     const snowballGateFloor = clamp(safeNumber(banConfig.snowballThreatGateFloor) ?? 0.30, 0, 1);
 
     const rows = candidates.map((candidate) => {
@@ -703,7 +702,10 @@
         { percentile: popularityPercentile, logarithmic: popularityLogarithmic },
         banConfig.popularityWeights || { percentile: 50, logarithmic: 50 }
       );
-      const popularity = rawPopularity * (popularityGateFloor + (1 - popularityGateFloor) * threatGate);
+      // Popularity is an intrinsic role-presence score and must depend only on
+      // the candidate's total matches. Its limited weight in the final index
+      // prevents a harmless but common champion from overtaking a true counter.
+      const popularity = rawPopularity;
 
       const snowballRows = knownRows.filter((row) => safeNumber(row.snowballPressure) !== null);
       const pressureWeightedAverage = weightedAverage(
@@ -1821,7 +1823,7 @@
       ? `all ${result.allCount} available champions`
       : `the ${result.q50Count} ${BAN_RECOMMENDATION_QUANTILE_LABEL} champions with at least ${integer(result.q50Threshold)} matches`;
     const poolText = result.pool.join(' / ');
-    byId('banRecommendationSummary').innerHTML = `<strong>${esc(roleLabel(state.role))} · ${esc(poolText)}:</strong> comparison ${esc(scopeText)}. Results are sorted by the final ban index. Matchup danger is dominant; popularity and candidate-oriented snowball pressure are gated by that danger. No candidate is removed because of a single favorable matchup.`;
+    byId('banRecommendationSummary').innerHTML = `<strong>${esc(roleLabel(state.role))} · ${esc(poolText)}:</strong> comparison ${esc(scopeText)}. Results are sorted by the final ban index. Matchup danger is dominant; popularity follows role match volume directly, while candidate-oriented snowball pressure is gated by matchup danger. No candidate is removed because of a single favorable matchup.`;
     byId('banResultCount').textContent = `${result.rows.length} ban`;
 
     const list = byId('banRecommendationRows');

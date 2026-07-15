@@ -204,8 +204,9 @@ window.POOL_BUILDER_CONFIG = {
     maxLimit: 30,
     candidateQuantile: 0.50,
 
-    // Matchup danger is dominant. Popularity and snowball only refine a threat
-    // that is already supported by matchup evidence.
+    // Matchup danger is dominant. Popularity is an intrinsic measure of how
+    // often the candidate is encountered in the role; its smaller final weight
+    // prevents it from overpowering a true matchup threat.
     weights: {
       matchupThreat: 72,
       popularity: 18,
@@ -233,9 +234,8 @@ window.POOL_BUILDER_CONFIG = {
       logarithmic: 50
     },
 
-    // Popularity and snowball are gated by matchup danger so a harmless but very
-    // popular champion cannot outrank a true counter.
-    popularityThreatGateFloor: 0.20,
+    // Snowball remains gated by matchup danger because volatility without
+    // opponent pressure is not, by itself, a reason to ban the champion.
     snowballThreatGateFloor: 0.30,
 
     fullSnowballAt: 0.25,
