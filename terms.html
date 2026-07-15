@@ -3,411 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="League Matchup Analyzer is a functional, non-commercial League of Legends analytics suite for matchup, draft, ranking, counter, and champion-pool research.">
-    <title>League Matchup Analyzer — Matchup & Draft Intelligence</title>
+    <meta name="description" content="Terms of Service for League Matchup Analyzer.">
+    <title>Terms of Service — League Matchup Analyzer</title>
     <style>
-        :root {
-            --bg: #0d1117;
-            --surface: #161b22;
-            --surface-raised: #1c2330;
-            --border: #30363d;
-            --text: #c9d1d9;
-            --muted: #8b949e;
-            --heading: #f0f6fc;
-            --accent: #58a6ff;
-            --gold: #d4a853;
-            --green: #3fb950;
-            --green-bg: #132a1a;
-            --blue-bg: #111f33;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        html { scroll-behavior: smooth; }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            line-height: 1.65;
-            min-height: 100vh;
-        }
-
-        .container {
-            max-width: 1040px;
-            margin: 0 auto;
-            padding: 56px 24px;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 34px;
-            padding: 12px 0 38px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        header h1 {
-            font-size: clamp(2.1rem, 5vw, 3.25rem);
-            line-height: 1.08;
-            font-weight: 700;
-            color: var(--heading);
-            margin-bottom: 12px;
-            letter-spacing: -0.04em;
-        }
-
-        header .subtitle {
-            max-width: 760px;
-            margin: 0 auto;
-            font-size: 1.08rem;
-            color: var(--muted);
-        }
-
-        .badges {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--blue-bg);
-            border: 1px solid var(--border);
-            color: var(--accent);
-            padding: 7px 14px;
-            border-radius: 999px;
-            font-size: 0.82rem;
-            font-weight: 600;
-        }
-
-        .badge-green {
-            background: var(--green-bg);
-            border-color: #2ea043;
-            color: var(--green);
-        }
-
-        .hero {
-            background: linear-gradient(145deg, #172131, var(--surface));
-            border: 1px solid #365f8c;
-            border-radius: 12px;
-            padding: 34px;
-            margin-bottom: 22px;
-        }
-
-        .eyebrow {
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            font-size: 0.76rem;
-            font-weight: 700;
-            margin-bottom: 10px;
-        }
-
-        .hero h2 {
-            color: var(--heading);
-            font-size: 1.65rem;
-            line-height: 1.25;
-            margin-bottom: 12px;
-        }
-
-        .hero p { max-width: 860px; }
-
-        .actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 22px;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 11px 18px;
-            border-radius: 7px;
-            font-weight: 650;
-            font-size: 0.93rem;
-            text-decoration: none;
-            transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-        }
-
-        .btn:hover { transform: translateY(-1px); text-decoration: none; }
-        .btn-primary { background: #238636; color: #fff; border: 1px solid #2ea043; }
-        .btn-primary:hover { background: #2ea043; }
-        .btn-secondary { background: #182433; color: var(--accent); border: 1px solid #365f8c; }
-        .btn-secondary:hover { background: #1e3046; }
-
-        section {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 28px 30px;
-            margin-bottom: 20px;
-        }
-
-        section h2 {
-            font-size: 1.25rem;
-            color: var(--heading);
-            margin-bottom: 16px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        section h3 {
-            font-size: 1rem;
-            color: var(--heading);
-            margin-bottom: 7px;
-        }
-
-        section p { margin-bottom: 12px; }
-        section p:last-child { margin-bottom: 0; }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 18px;
-            margin-bottom: 20px;
-        }
-
-        .tool-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 24px;
-        }
-
-        .tool-card .label {
-            display: inline-block;
-            color: var(--gold);
-            font-size: 0.74rem;
-            font-weight: 750;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-
-        .tool-card p { color: var(--muted); font-size: 0.94rem; }
-        .tool-card a { display: inline-block; margin-top: 12px; font-weight: 650; }
-
-        ul { list-style: none; padding: 0; }
-
-        li {
-            position: relative;
-            padding-left: 20px;
-            margin-bottom: 9px;
-        }
-
-        li::before {
-            content: "";
-            position: absolute;
-            left: 0;
-            top: 0.68em;
-            width: 6px;
-            height: 6px;
-            background: var(--accent);
-            border-radius: 50%;
-        }
-
-        .two-column {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-        }
-
-        .regions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 12px;
-        }
-
-        .region-tag {
-            background: var(--blue-bg);
-            border: 1px solid var(--border);
-            padding: 4px 12px;
-            border-radius: 999px;
-            font-size: 0.79rem;
-            color: var(--text);
-            font-family: "SFMono-Regular", Consolas, monospace;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 6px;
-        }
-
-        th, td {
-            text-align: left;
-            padding: 10px 8px;
-            border-bottom: 1px solid var(--border);
-            vertical-align: top;
-        }
-
-        th { color: var(--muted); font-size: 0.82rem; font-weight: 600; }
-        td { font-size: 0.92rem; }
-        code { color: #79c0ff; font-family: "SFMono-Regular", Consolas, monospace; }
-
-        .notice {
-            border-left: 3px solid var(--green);
-            background: var(--green-bg);
-            padding: 16px 18px;
-            border-radius: 0 7px 7px 0;
-            color: #d7f3dc;
-        }
-
-        footer {
-            text-align: center;
-            margin-top: 42px;
-            padding-top: 26px;
-            border-top: 1px solid var(--border);
-            color: var(--muted);
-            font-size: 0.84rem;
-        }
-
-        footer p { margin-bottom: 6px; }
-        a { color: var(--accent); text-decoration: none; }
-        a:hover { text-decoration: underline; }
-
-        @media (max-width: 760px) {
-            .grid, .two-column { grid-template-columns: 1fr; }
-            .container { padding: 32px 16px; }
-            .hero, section { padding: 24px 20px; }
-            table { display: block; overflow-x: auto; }
-        }
+        :root { --bg:#0d1117; --surface:#161b22; --border:#30363d; --text:#c9d1d9; --muted:#8b949e; --heading:#f0f6fc; --accent:#58a6ff; }
+        * { box-sizing: border-box; }
+        body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; max-width:900px; margin:0 auto; padding:48px 20px; background:var(--bg); color:var(--text); line-height:1.68; }
+        .container { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:34px; }
+        h1 { color:var(--heading); border-bottom:1px solid var(--border); padding-bottom:14px; margin-top:0; }
+        h2 { color:var(--heading); margin-top:32px; font-size:1.18rem; }
+        p, li { color:var(--text); }
+        .updated, .note { color:var(--muted); }
+        .notice { border-left:3px solid var(--accent); padding:12px 16px; background:#111f33; border-radius:0 6px 6px 0; }
+        a { color:var(--accent); }
+        footer { margin-top:32px; padding-top:20px; border-top:1px solid var(--border); color:var(--muted); font-size:.86rem; }
+        @media (max-width:600px) { body { padding:24px 12px; } .container { padding:24px 20px; } }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>League Matchup Analyzer</h1>
-            <p class="subtitle">A functional, non-commercial analytics suite for matchup preparation, draft evaluation, champion rankings, counter research, and champion-pool planning.</p>
-            <div class="badges">
-                <span class="badge badge-green">Functional &amp; Testable</span>
-                <span class="badge">Aggregated Match Data</span>
-                <span class="badge">Policy-Aware Pipeline</span>
-            </div>
-        </header>
+    <main class="container">
+        <h1>Terms of Service</h1>
+        <p class="updated">Last updated: July 15, 2026</p>
 
-        <div class="hero">
-            <p class="eyebrow">Player-focused statistical research</p>
-            <h2>Explainable insights that support decisions without replacing them</h2>
-            <p>League Matchup Analyzer converts large volumes of ranked match data into readable, role-specific analysis. It helps players and analysts understand recurring patterns while preserving uncertainty, player agency, and competitive integrity. The application does not automate gameplay, calculate hidden skill ratings, or provide real-time prescriptive assistance.</p>
-            <div class="actions">
-                <a href="visual.html" class="btn btn-primary">Open Matchup Lab</a>
-                <a href="tm_data.html" class="btn btn-secondary">Open Team DraftLab</a>
-                <a href="rankings.html" class="btn btn-secondary">Open Rankings Lab</a>
-                <a href="pool.html" class="btn btn-secondary">Open Pool Builder</a>
-            </div>
+        <p>These Terms of Service govern access to and use of League Matchup Analyzer (the “Service”). By using the Service, you agree to these Terms. If you do not agree, do not use the Service.</p>
+
+        <h2>1. Description and Purpose of the Service</h2>
+        <p>League Matchup Analyzer is a non-commercial educational and research application that produces statistical analysis and visualizations from League of Legends match data obtained through authorized Riot Games developer services. The Service includes champion matchup analysis, team-composition analysis, role rankings, counter research, and champion-pool planning.</p>
+        <p>The Service provides retrospective, descriptive decision support. It does not automate gameplay, interact with the League client, guarantee outcomes, or replace player judgment.</p>
+
+        <h2>2. Eligibility and Acceptable Use</h2>
+        <p>You may use the Service for lawful personal, educational, analytical, or research purposes. You must not:</p>
+        <ul>
+            <li>use the Service to cheat, automate gameplay, interfere with the game client, or obtain an unfair competitive advantage;</li>
+            <li>scrape, bulk-download, mirror, resell, sublicense, or commercially redistribute Service data or derived outputs;</li>
+            <li>attempt to access API credentials, internal systems, source data not exposed by the interface, or security controls;</li>
+            <li>misrepresent statistical outputs as certain predictions, official Riot guidance, or individualized professional advice;</li>
+            <li>use the Service for betting, gambling, boosting, account trading, harassment, profiling, or unlawful activity; or</li>
+            <li>use automated traffic that disrupts the Service or causes excessive requests to upstream services.</li>
+        </ul>
+
+        <h2>3. Riot Games API, Data, and Intellectual Property</h2>
+        <p>The Service uses Riot Games developer APIs and Data Dragon assets in accordance with applicable Riot Games terms and policies. Riot Games and League of Legends are owned by Riot Games, Inc. or its affiliates. Nothing in these Terms grants you ownership of Riot Games data, assets, trademarks, or intellectual property.</p>
+        <p>The Service does not sell access to the Riot Games API, expose API keys, or redistribute raw Riot API responses as a standalone dataset. Access to the Service does not grant users any right to extract, republish, or commercially exploit Riot-provided data.</p>
+
+        <div class="notice">
+            <strong>Required Riot notice:</strong><br>
+            League Matchup Analyzer was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project.
         </div>
 
-        <section id="overview">
-            <h2>Project Overview</h2>
-            <p>The project is a complete web application with clear, testable user flows. Public-facing results are generated from Riot Games API data and presented as aggregated champion, role, matchup, and composition statistics. The interface explains sample size, missing data, confidence, and the practical limits of each conclusion instead of presenting statistical tendencies as guaranteed outcomes.</p>
-            <p>The product is intended for education, preparation, and research. It adds original analytical value through derived metrics, statistical controls, comparative visualizations, and plain-language interpretation. It does not expose raw player profiles, Riot-issued identifiers, API credentials, or complete individual match histories.</p>
-        </section>
+        <h2>4. Statistical Limitations</h2>
+        <p>Results are based on historical samples and may be affected by patch changes, regional differences, queue conditions, role classification, missing data, sample size, player skill distribution, and ordinary statistical variance. The interface may use confidence intervals, thresholds, shrinkage, or other statistical controls, but no method eliminates uncertainty.</p>
+        <p>Outputs are informational only. They are not guarantees of match outcome, recommendations to wager money, or claims about the ability or identity of any individual player.</p>
 
-        <div class="grid" aria-label="Application modules">
-            <article class="tool-card">
-                <span class="label">1v1 analysis</span>
-                <h3>Matchup Lab</h3>
-                <p>Compares two champions in the same role across win-rate context, gold and experience progression, combat, objectives, timing, and reliability.</p>
-                <a href="visual.html">Explore Matchup Lab →</a>
-            </article>
-            <article class="tool-card">
-                <span class="label">Composition analysis</span>
-                <h3>Team DraftLab</h3>
-                <p>Evaluates two compositions lane by lane and explains differences in pressure, scaling, damage, control, objectives, volatility, and evidence quality.</p>
-                <a href="tm_data.html">Explore Team DraftLab →</a>
-            </article>
-            <article class="tool-card">
-                <span class="label">Rankings &amp; counters</span>
-                <h3>Rankings Lab</h3>
-                <p>Provides role rankings and counter analysis with configurable evidence thresholds, conservative Wilson controls, and visible low-sample warnings.</p>
-                <a href="rankings.html">Explore Rankings Lab →</a>
-            </article>
-            <article class="tool-card">
-                <span class="label">Champion-pool planning</span>
-                <h3>Pool Builder Lab</h3>
-                <p>Builds statistically balanced champion pools using matchup coverage, worst-case weaknesses, damage diversity, strength, and reliability.</p>
-                <a href="pool.html">Explore Pool Builder →</a>
-            </article>
-        </div>
+        <h2>5. Data Availability and Changes</h2>
+        <p>Coverage may vary by region, patch, champion, role, matchup, and time period. The Service may add, remove, correct, or recalculate data when source APIs, game systems, methodology, or quality requirements change. Features may be modified or discontinued to preserve security, policy compliance, data quality, or operational stability.</p>
 
-        <section>
-            <h2>Data Sources and Coverage</h2>
-            <table>
-                <thead>
-                    <tr><th>Source</th><th>Purpose</th></tr>
-                </thead>
-                <tbody>
-                    <tr><td><code>Match-V5</code></td><td>Ranked match retrieval and match-level gameplay statistics used to produce derived, aggregated analysis.</td></tr>
-                    <tr><td><code>League-V4</code></td><td>League-entry discovery used by the controlled ingestion workflow for the project's configured ranked populations.</td></tr>
-                    <tr><td><code>Data Dragon</code></td><td>Approved static champion metadata and visual assets.</td></tr>
-                </tbody>
-            </table>
-            <p style="margin-top:16px;">Current configured regional coverage:</p>
-            <div class="regions">
-                <span class="region-tag">EUW</span><span class="region-tag">EUNE</span><span class="region-tag">NA</span><span class="region-tag">KR</span>
-                <span class="region-tag">BR</span><span class="region-tag">LAN</span><span class="region-tag">LAS</span><span class="region-tag">OCE</span>
-                <span class="region-tag">TR</span><span class="region-tag">RU</span><span class="region-tag">JP</span>
-            </div>
-        </section>
+        <h2>6. Service Security</h2>
+        <p>You must not probe, bypass, disable, or interfere with rate limits, access controls, authentication, caching, or other safeguards. Suspected misuse may result in access restriction and, where appropriate, reporting to the relevant service provider or authority.</p>
 
-        <section>
-            <h2>Responsible API Operation</h2>
-            <div class="two-column">
-                <div>
-                    <h3>Traffic and reliability controls</h3>
-                    <ul>
-                        <li>Server-side token-bucket rate limiting and bounded concurrency</li>
-                        <li>Exponential backoff and controlled handling of HTTP 429 responses</li>
-                        <li>Request caching and LRU-based match deduplication</li>
-                        <li>Incremental, schema-controlled Parquet storage</li>
-                        <li>Checkpoint persistence and graceful job recovery</li>
-                    </ul>
-                </div>
-                <div>
-                    <h3>Security and key handling</h3>
-                    <ul>
-                        <li>API traffic is performed server-side over HTTPS</li>
-                        <li>API credentials are never embedded in public client code</li>
-                        <li>The registered key is restricted to this single product</li>
-                        <li>Public pages expose only derived and aggregated outputs</li>
-                        <li>Operational controls are reviewed as Riot policies evolve</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
+        <h2>7. Third-Party Services</h2>
+        <p>The Service depends on third-party infrastructure and Riot Games developer services. Those services are governed by their own terms and may change, suspend, or discontinue functionality. League Matchup Analyzer is not responsible for third-party availability or policy decisions.</p>
 
-        <section>
-            <h2>Competitive Integrity and Player Safety</h2>
-            <ul>
-                <li>No gameplay automation, scripting, input modification, or interaction with the League client</li>
-                <li>No real-time overlay intended to prescribe actions during a live match</li>
-                <li>No MMR/ELO estimation, boosting, account trading, hidden-player identification, betting, or gambling</li>
-                <li>No claims of certainty: analysis is retrospective, descriptive, and explicitly uncertainty-aware</li>
-                <li>Multiple strategic options are highlighted so the product supports decision diversity rather than removing player choice</li>
-            </ul>
-        </section>
+        <h2>8. No Warranties</h2>
+        <p>The Service is provided on an “as is” and “as available” basis. To the maximum extent permitted by law, no express or implied warranties are made regarding accuracy, completeness, uninterrupted availability, fitness for a particular purpose, or non-infringement.</p>
 
-        <section>
-            <h2>Data Stewardship</h2>
-            <p>The website does not require account registration and does not ask users to submit a Riot ID or personal profile. Where Riot-issued technical identifiers are present in source API responses, they are handled only as operational fields needed for retrieval, deduplication, and reproducibility; they are not displayed publicly or combined with external identity data. The project does not sell, license, or redistribute Riot API data.</p>
-            <p>Detailed practices are documented in the <a href="privacy.html">Privacy Policy</a>, and acceptable use, analytical limitations, Riot attribution, and service conditions are documented in the <a href="terms.html">Terms of Service</a>.</p>
-        </section>
+        <h2>9. Limitation of Liability</h2>
+        <p>To the maximum extent permitted by law, the project owner will not be liable for indirect, incidental, special, consequential, or punitive damages, or for losses arising from reliance on statistical outputs, service interruption, third-party changes, or unauthorized use of the Service.</p>
 
-        <section>
-            <h2>Operational Readiness</h2>
-            <div class="notice">The application is already functional and testable. Its scheduled multi-region ingestion model is designed around predictable, long-lived access, measured request volumes, and responsible scaling within the limits assigned to the registered product. Temporary credentials are not embedded in the public application and are not treated as a substitute for a controlled production workflow.</div>
-        </section>
+        <h2>10. Suspension and Termination</h2>
+        <p>Access may be limited or terminated when necessary to address abuse, security risk, legal obligations, Riot policy requirements, or conduct inconsistent with these Terms.</p>
 
-        <footer>
-            <p>&copy; 2026 League Matchup Analyzer — Non-Commercial Educational and Research Project</p>
-            <p>League Matchup Analyzer was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project.</p>
-            <p style="margin-top:12px;"><a href="terms.html">Terms of Service</a> &nbsp;|&nbsp; <a href="privacy.html">Privacy Policy</a></p>
-        </footer>
-    </div>
+        <h2>11. Changes to These Terms</h2>
+        <p>These Terms may be updated to reflect changes in the Service, applicable law, security practices, or Riot Games policies. The “Last updated” date identifies the current version. Continued use after an update constitutes acceptance of the revised Terms.</p>
+
+        <h2>12. Contact</h2>
+        <p>Questions about these Terms, compliance, or the Service may be submitted through the official contact channel associated with the project's verified domain or Riot Developer Portal application.</p>
+
+        <p><a href="index.html">← Back to Home</a></p>
+
+        <footer>These Terms describe the current non-commercial operation of League Matchup Analyzer and should be updated before any material change in functionality, data handling, ownership, or monetization.</footer>
+    </main>
 </body>
 </html>
