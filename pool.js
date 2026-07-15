@@ -25,12 +25,19 @@
   // All editable numbers are in pool.config.js. Only formulas remain here.
   // --------------------------------------------------------------------------
   const PROFILE_VECTOR_FIELDS = CONFIG?.profileDiversity?.fields || [];
-  const RECOMMENDATION_LIMIT = CONFIG?.recommendation?.limit ?? 7;
+  const RECOMMENDATION_LIMIT = Math.max(1, Math.round(safeNumber(CONFIG?.recommendation?.limit) ?? 7));
   const MATCHUP_NEUTRAL = CONFIG?.matchup?.neutralWinrate ?? 0.50;
-  const POOL_COUNTER_QUANTILE = 0.50;
-  const BAN_RECOMMENDATION_QUANTILE = 0.50;
+  const POOL_COUNTER_QUANTILE = clamp(CONFIG?.counterTable?.opponentQuantile ?? 0.50, 0, 1);
+  const BAN_RECOMMENDATION_QUANTILE = clamp(CONFIG?.banRecommendation?.candidateQuantile ?? 0.50, 0, 1);
   const BAN_RECOMMENDATION_LIMIT = Math.max(1, Math.round(safeNumber(CONFIG?.banRecommendation?.limit) ?? 10));
-  const DEFAULT_POOL_COUNTER_CONFIDENCE = 99;
+  const BAN_RECOMMENDATION_MAX_LIMIT = Math.max(BAN_RECOMMENDATION_LIMIT, Math.round(safeNumber(CONFIG?.banRecommendation?.maxLimit) ?? 30));
+  const DEFAULT_POOL_COUNTER_CONFIDENCE = Number(CONFIG?.counterTable?.defaultWilsonConfidence ?? 99);
+  const POOL_SIZES = Array.from(new Set((CONFIG?.ui?.poolSizes || [2, 3, 4, 5])
+    .map((value) => Math.round(safeNumber(value) ?? 0))
+    .filter((value) => value >= 1 && value <= 10))).sort((a, b) => a - b);
+  const COMBO_OPTION_LIMIT = Math.max(10, Math.round(safeNumber(CONFIG?.ui?.comboOptionLimit) ?? 60));
+  const POOL_COUNTER_QUANTILE_LABEL = `Q${Math.round(POOL_COUNTER_QUANTILE * 100)}`;
+  const BAN_RECOMMENDATION_QUANTILE_LABEL = `Q${Math.round(BAN_RECOMMENDATION_QUANTILE * 100)}`;
   const WILSON_Z = {
     90: 1.6448536269514722,
     95: 1.959963984540054,
@@ -61,7 +68,7 @@
 
   const state = {
     role: null,
-    size: 3,
+    size: POOL_SIZES.includes(3) ? 3 : (POOL_SIZES[0] || 3),
     firstChampion: null,
     selected: [],
     started: false,
@@ -73,7 +80,7 @@
     comboControllers: [],
     counterScope: 'q50',
     counterMetric: 'wilson',
-    counterConfidence: DEFAULT_POOL_COUNTER_CONFIDENCE,
+    counterConfidence: [90, 95, 99].includes(DEFAULT_POOL_COUNTER_CONFIDENCE) ? DEFAULT_POOL_COUNTER_CONFIDENCE : 99,
     counterQuery: '',
     banScope: 'q50',
     banLimit: BAN_RECOMMENDATION_LIMIT,
@@ -82,7 +89,7 @@
     quickPool: [],
     quickScope: 'q50',
     quickMetric: 'wilson',
-    quickConfidence: DEFAULT_POOL_COUNTER_CONFIDENCE,
+    quickConfidence: [90, 95, 99].includes(DEFAULT_POOL_COUNTER_CONFIDENCE) ? DEFAULT_POOL_COUNTER_CONFIDENCE : 99,
     quickQuery: '',
     quickMatrix: null,
     quickUnknownChampions: []
@@ -148,23 +155,18 @@
   // statistically solid. This is independent of the reliability of the individual data point
   // (which remains handled by evidenceWeight).
   function opponentLikelihoodWeight(role, opponent) {
-    const exponent = safeNumber(CONFIG?.matchup?.opponentLikelihoodExponent) ?? 0.6;
-    let weight = 1;
-    if (exponent > 0) {
-      const games = Math.max(0.0001, profileGames(role, opponent));
-      weight = games ** exponent;
-    }
-    if (CONFIG?.dataSelection?.evaluationOpponents === 'blend') {
-      const blend = clamp(CONFIG?.dataSelection?.rigorousBlendWeight ?? 0.6, 0, 1);
-      const isRigorous = state.rigorousChampions.includes(opponent);
-      if (!isRigorous) weight *= (1 - blend);
-    }
-    return weight;
+    const exponent = Math.max(0, safeNumber(CONFIG?.matchup?.opponentLikelihoodExponent) ?? 0.35);
+    if (exponent === 0) return 1;
+    const games = Math.max(0.0001, profileGames(role, opponent));
+    return games ** exponent;
   }
 
   function normalizedRecommendationMetric(absoluteScore, percentileScore) {
-    const relativeBlend = clamp(CONFIG?.recommendation?.relativeRankBlend ?? 0.35, 0, 1);
-    return (1 - relativeBlend) * clamp(absoluteScore, 0, 100) + relativeBlend * clamp(percentileScore, 0, 100);
+    const absolute = clamp(absoluteScore, 0, 100);
+    if (absolute <= 0) return 0;
+    const relativeBlend = clamp(CONFIG?.recommendation?.relativeRankBlend ?? 0.20, 0, 1);
+    const centeredRank = (clamp(percentileScore, 0, 100) - 50) / 50;
+    return clamp(absolute * (1 + relativeBlend * centeredRank), 0, 100);
   }
 
   function prefersReducedMotion() {
@@ -342,11 +344,6 @@
     return safeNumber(coverage.total_games) ?? safeNumber(coverage.n_games) ?? safeNumber(coverage.matches) ?? 0;
   }
 
-  function profileMatchups(role, champion) {
-    const coverage = profilesForRole(role)?.[champion]?.coverage || {};
-    return safeNumber(coverage.n_matchups) ?? safeNumber(coverage.matchups) ?? 0;
-  }
-
   function calculateRoleQuantileSet(role, rawQuantile) {
     const champions = championsForRole(role);
     const values = champions.map((champion) => profileGames(role, champion)).filter((value) => value > 0).sort((a, b) => a - b);
@@ -376,18 +373,65 @@
     return output;
   }
 
-  function snowballSensitivityFromRaw(raw) {
-    if (!raw) return { value: null, source: null };
-    const conversion = safeNumber(raw.snowball_conversion_15m_a);
-    if (conversion !== null) return { value: Math.abs(conversion), source: 'conversion' };
+  function firstRawNumber(raw, keys) {
+    for (const key of keys) {
+      const value = safeNumber(raw?.[key]);
+      if (value !== null) return value;
+    }
+    return null;
+  }
 
-    const ahead = safeNumber(raw.winrate_a_when_ahead_15m);
-    const behind = safeNumber(raw.winrate_a_when_behind_15m);
-    if (ahead !== null && behind !== null) return { value: Math.abs(ahead - behind), source: 'winrate-swing' };
+  function snowballMetricsFromRaw(raw, side = 'a') {
+    if (!raw) return { sensitivity: null, pressure: null, source: null, directionKnown: false };
 
-    const corr = safeNumber(raw.snowball_corr_15m);
-    if (corr !== null) return { value: Math.min(0.35, Math.abs(corr) * 0.30), source: 'correlation-fallback' };
-    return { value: null, source: null };
+    const conversion = firstRawNumber(raw, [
+      `snowball_conversion_15m_${side}`,
+      `${side}_snowball_conversion_15m`
+    ]);
+    if (conversion !== null) {
+      return {
+        sensitivity: Math.abs(conversion),
+        pressure: Math.max(0, conversion),
+        source: 'conversion',
+        directionKnown: true
+      };
+    }
+
+    const ahead = firstRawNumber(raw, [
+      `winrate_${side}_when_${side}_ahead_15m`,
+      `winrate_${side}_when_ahead_15m`,
+      `${side}_winrate_when_ahead_15m`
+    ]);
+    const behind = firstRawNumber(raw, [
+      `winrate_${side}_when_${side}_behind_15m`,
+      `winrate_${side}_when_behind_15m`,
+      `${side}_winrate_when_behind_15m`
+    ]);
+    if (ahead !== null && behind !== null) {
+      const swing = ahead - behind;
+      return {
+        sensitivity: Math.abs(swing),
+        pressure: Math.max(0, swing),
+        source: 'winrate-swing',
+        directionKnown: true
+      };
+    }
+
+    const correlation = firstRawNumber(raw, [
+      `snowball_corr_15m_${side}`,
+      `${side}_snowball_corr_15m`,
+      'snowball_corr_15m'
+    ]);
+    if (correlation !== null) {
+      const fallback = Math.min(0.35, Math.abs(correlation) * 0.30);
+      return {
+        sensitivity: fallback,
+        pressure: fallback,
+        source: 'correlation-fallback',
+        directionKnown: false
+      };
+    }
+    return { sensitivity: null, pressure: null, source: null, directionKnown: false };
   }
 
   function getMatchup(role, champion, opponent) {
@@ -428,12 +472,14 @@
     const shrinkageGames = Math.max(0, safeNumber(CONFIG?.matchup?.shrinkageGames) ?? 20);
     const reliability = shrinkageGames === 0 ? 1 : games / (games + shrinkageGames);
     const decisionScore = MATCHUP_NEUTRAL + (matchupScore - MATCHUP_NEUTRAL) * reliability;
-    const snowball = snowballSensitivityFromRaw(raw);
+    const snowball = snowballMetricsFromRaw(raw, side);
 
     return {
       champion, opponent, orientation, winrate, generalWinrate, diff, games,
       matchupScore, decisionScore, reliability,
-      snowballSensitivity: snowball.value,
+      snowballSensitivity: snowball.sensitivity,
+      snowballPressure: snowball.pressure,
+      snowballDirectionKnown: snowball.directionKnown,
       snowballSource: snowball.source
     };
   }
@@ -584,7 +630,7 @@
     const normalizedPool = normalizePoolForRole(pool, role);
     const scope = options.scope === 'all' ? 'all' : 'q50';
     const requestedLimit = Math.round(safeNumber(options.limit) ?? BAN_RECOMMENDATION_LIMIT);
-    const limit = Math.max(1, Math.min(30, requestedLimit));
+    const limit = Math.max(1, Math.min(BAN_RECOMMENDATION_MAX_LIMIT, requestedLimit));
     if (!role || !normalizedPool.length) {
       return { role, pool: normalizedPool, scope, limit, q50Threshold: 0, q50Count: 0, allCount: 0, rows: [] };
     }
@@ -597,12 +643,11 @@
     const banConfig = CONFIG?.banRecommendation || {};
     const neutralThreat = safeNumber(banConfig.neutralThreat) ?? 0.50;
     const fullThreatAt = Math.max(neutralThreat + 0.001, safeNumber(banConfig.fullThreatAt) ?? 0.60);
+    const unknownThreatPrior = clamp(safeNumber(banConfig.unknownThreatPrior) ?? neutralThreat, 0, 1);
     const fullSnowballAt = Math.max(0.01, safeNumber(banConfig.fullSnowballAt) ?? 0.25);
-    const safeAnswerThreatMax = clamp(safeNumber(banConfig.safeAnswerThreatMax) ?? 0.55, 0, 1);
-    const excludeIfMostSensitiveFavorsPool = banConfig.excludeIfMostSensitiveFavorsPool !== false;
-    const favorableSensitiveMaxWinrate = clamp(safeNumber(banConfig.favorableSensitiveMaxWinrate) ?? 0.50, 0, 1);
-    const favorableSensitiveMaxDiff = safeNumber(banConfig.favorableSensitiveMaxDiff) ?? 0;
-    let excludedFavorableSensitiveCount = 0;
+    const safeAnswerThreatMax = clamp(safeNumber(banConfig.safeAnswerThreatMax) ?? 0.525, 0, 1);
+    const popularityGateFloor = clamp(safeNumber(banConfig.popularityThreatGateFloor) ?? 0.20, 0, 1);
+    const snowballGateFloor = clamp(safeNumber(banConfig.snowballThreatGateFloor) ?? 0.30, 0, 1);
 
     const rows = candidates.map((candidate) => {
       const matchupRows = normalizedPool.map((playerChampion) => {
@@ -612,12 +657,13 @@
             candidate,
             playerChampion,
             hasData: false,
-            threat: MATCHUP_NEUTRAL,
+            threat: unknownThreatPrior,
             winrate: null,
             diff: null,
             games: null,
             reliability: 0,
-            snowballSensitivity: null
+            snowballSensitivity: null,
+            snowballPressure: null
           };
         }
         return {
@@ -632,57 +678,41 @@
       const knownRows = matchupRows.filter((row) => row.hasData && safeNumber(row.threat) !== null);
       if (!knownRows.length) return null;
 
-      // The most sensitive matchup is the one with the greatest WR variation between
-      // being ahead and behind at 15 minutes. If even that matchup remains
-      // favorable to the pool in both direct WR and WR difference, the champion is not
-      // a ban priority and is excluded before popularity and score are applied.
-      const mostSensitiveMatchup = knownRows
-        .filter((row) => safeNumber(row.snowballSensitivity) !== null)
-        .slice()
-        .sort((a, b) => b.snowballSensitivity - a.snowballSensitivity
-          || b.games - a.games
-          || b.threat - a.threat
-          || localeSort(a.playerChampion, b.playerChampion))[0] || null;
-      const mostSensitiveFavorsPool = Boolean(
-        mostSensitiveMatchup
-        && safeNumber(mostSensitiveMatchup.winrate) !== null
-        && safeNumber(mostSensitiveMatchup.diff) !== null
-        && mostSensitiveMatchup.winrate <= favorableSensitiveMaxWinrate
-        && mostSensitiveMatchup.diff <= favorableSensitiveMaxDiff
-      );
-      if (excludeIfMostSensitiveFavorsPool && mostSensitiveFavorsPool) {
-        excludedFavorableSensitiveCount += 1;
-        return null;
-      }
-
-      // Missing matchups are included as neutral. This prevents a single known
-      // hard counter from being mistaken for a threat to the entire pool.
-      const threatValues = matchupRows.map((row) => safeNumber(row.threat) ?? MATCHUP_NEUTRAL);
-      const noSafeAnswer = Math.min(...threatValues);
+      const threatValues = matchupRows.map((row) => safeNumber(row.threat) ?? unknownThreatPrior);
+      // Unknown rows may influence the aggregate through the configured prior,
+      // but they can never masquerade as the pool's best known answer.
+      const bestAnswerThreat = Math.min(...knownRows.map((row) => row.threat));
       const averagePressure = threatValues.reduce((sum, value) => sum + value, 0) / threatValues.length;
       const worstExposure = Math.max(...threatValues);
+      const poolThreatWeights = banConfig.poolThreatWeights || { bestAnswerThreat: 50, averagePressure: 15, worstExposure: 35 };
       const aggregateThreat = weightedScore(
-        { noSafeAnswer, averagePressure, worstExposure },
-        banConfig.poolThreatWeights || { noSafeAnswer: 55, averagePressure: 30, worstExposure: 15 }
+        { bestAnswerThreat, averagePressure, worstExposure },
+        {
+          bestAnswerThreat: poolThreatWeights.bestAnswerThreat ?? poolThreatWeights.noSafeAnswer,
+          averagePressure: poolThreatWeights.averagePressure,
+          worstExposure: poolThreatWeights.worstExposure
+        }
       );
       const matchupThreat = clamp((aggregateThreat - neutralThreat) / (fullThreatAt - neutralThreat) * 100, 0, 100);
+      const threatGate = matchupThreat / 100;
 
       const candidateGames = profileGames(role, candidate);
       const popularityPercentile = percentileRank(candidateGames, allPopularityValues);
       const popularityLogarithmic = clamp(Math.log1p(candidateGames) / Math.log1p(maxGames) * 100, 0, 100);
-      const popularity = weightedScore(
+      const rawPopularity = weightedScore(
         { percentile: popularityPercentile, logarithmic: popularityLogarithmic },
-        banConfig.popularityWeights || { percentile: 65, logarithmic: 35 }
+        banConfig.popularityWeights || { percentile: 50, logarithmic: 50 }
       );
+      const popularity = rawPopularity * (popularityGateFloor + (1 - popularityGateFloor) * threatGate);
 
-      const snowballRows = knownRows.filter((row) => safeNumber(row.snowballSensitivity) !== null);
+      const snowballRows = knownRows.filter((row) => safeNumber(row.snowballPressure) !== null);
       const pressureWeightedAverage = weightedAverage(
         snowballRows,
-        (row) => row.snowballSensitivity,
+        (row) => row.snowballPressure,
         (row) => 1 + clamp((row.threat - MATCHUP_NEUTRAL) / 0.10, 0, 1) * 2
       );
       const worstSnowball = snowballRows.length
-        ? Math.max(...snowballRows.map((row) => row.snowballSensitivity))
+        ? Math.max(...snowballRows.map((row) => row.snowballPressure))
         : null;
       const aggregateSnowball = pressureWeightedAverage === null && worstSnowball === null
         ? null
@@ -690,11 +720,12 @@
           { pressureWeightedAverage, worstCase: worstSnowball },
           banConfig.snowballWeights || { pressureWeightedAverage: 70, worstCase: 30 }
         );
-      const snowball = aggregateSnowball === null ? 0 : clamp(aggregateSnowball / fullSnowballAt * 100, 0, 100);
+      const rawSnowball = aggregateSnowball === null ? 0 : clamp(aggregateSnowball / fullSnowballAt * 100, 0, 100);
+      const snowball = rawSnowball * (snowballGateFloor + (1 - snowballGateFloor) * threatGate);
 
       const score = weightedScore(
         { matchupThreat, popularity, snowball },
-        banConfig.weights || { matchupThreat: 74, popularity: 19, snowball: 7 }
+        banConfig.weights || { matchupThreat: 72, popularity: 18, snowball: 10 }
       );
       const bestResponse = knownRows.slice().sort((a, b) => a.threat - b.threat || b.games - a.games || localeSort(a.playerChampion, b.playerChampion))[0] || null;
       const worstMatchup = knownRows.slice().sort((a, b) => b.threat - a.threat || b.games - a.games || localeSort(a.playerChampion, b.playerChampion))[0] || null;
@@ -708,16 +739,19 @@
         knownCount: knownRows.length,
         totalCount: normalizedPool.length,
         knownRatio: knownRows.length / normalizedPool.length,
-        noSafeAnswer,
+        bestAnswerThreat,
+        noSafeAnswer: bestAnswerThreat,
         averagePressure,
         worstExposure,
         aggregateThreat,
         matchupThreat,
         popularity,
+        rawPopularity,
         popularityPercentile,
         popularityLogarithmic,
         aggregateSnowball,
         snowball,
+        rawSnowball,
         score,
         averageEnemyWinrate: average(knownRows, (row) => row.winrate),
         averageEnemyDiff: average(knownRows, (row) => row.diff),
@@ -726,16 +760,13 @@
         safeResponses,
         hasSafeAnswer,
         bestResponse,
-        worstMatchup,
-        mostSensitiveMatchup
+        worstMatchup
       };
     }).filter(Boolean);
 
-    // The visual order must exactly match the displayed ban index.
-    // The individual components are used only as tie-breakers when two
-    // indices are mathematically equal, never to outrank a higher score.
     rows.sort((a, b) => b.score - a.score
       || b.matchupThreat - a.matchupThreat
+      || b.worstExposure - a.worstExposure
       || b.popularity - a.popularity
       || b.snowball - a.snowball
       || b.aggregateThreat - a.aggregateThreat
@@ -751,10 +782,7 @@
       q50Count: q50.eligible.length,
       allCount: q50.all.length,
       rows: rows.slice(0, limit),
-      allRows: rows,
-      excludedFavorableSensitiveCount,
-      favorableSensitiveMaxWinrate,
-      favorableSensitiveMaxDiff
+      allRows: rows
     };
   }
 
@@ -771,19 +799,15 @@
     return weightTotal > 0 ? total / weightTotal : null;
   }
 
-  function shrunkMatchupScore(row) {
-    return safeNumber(row?.decisionScore) ?? MATCHUP_NEUTRAL;
-  }
-
-  function relevantOpponents(pool = []) {
-    const unavailable = new Set(pool);
-    return state.opponents.filter((opponent) => !unavailable.has(opponent));
+  function relevantOpponents() {
+    return state.opponents.slice();
   }
 
   function bestPoolAnswers(pool) {
     const map = new Map();
-    relevantOpponents(pool).forEach((opponent) => {
+    relevantOpponents().forEach((opponent) => {
       const rows = pool
+        .filter((champion) => champion !== opponent)
         .map((champion) => getMatchup(state.role, champion, opponent))
         .filter((row) => row && row.decisionScore !== null);
       rows.sort((a, b) => b.decisionScore - a.decisionScore || b.games - a.games || localeSort(a.champion, b.champion));
@@ -792,16 +816,28 @@
     return map;
   }
 
+  function weaknessControlFromScore(score) {
+    const floor = clamp(CONFIG?.matchup?.weaknessScoreFloor ?? 0.40, 0, 1);
+    const fullAt = clamp(CONFIG?.matchup?.weaknessScoreFullAt ?? 0.52, floor + 0.001, 1);
+    return clamp((score - floor) / (fullAt - floor), 0, 1);
+  }
+
+  function conservativeCompletenessAdjustment(observed, prior, completeness) {
+    const value = safeNumber(observed);
+    if (value === null) return prior;
+    if (value <= prior) return value;
+    const exponent = Math.max(0.01, safeNumber(CONFIG?.matchup?.completenessShrinkExponent) ?? 1);
+    const retainedSignal = clamp(completeness, 0, 1) ** exponent;
+    return prior + (value - prior) * retainedSignal;
+  }
+
   function evaluateMatchupCore(pool) {
-    const opponents = relevantOpponents(pool);
+    const opponents = relevantOpponents();
     const answers = bestPoolAnswers(pool);
     const known = [];
     opponents.forEach((opponent) => {
       const answer = answers.get(opponent);
       if (!answer || answer.decisionScore === null || answer.games <= 0) return;
-      const weaknessControl = answer.decisionScore >= MATCHUP_NEUTRAL
-        ? 1
-        : clamp(answer.decisionScore / MATCHUP_NEUTRAL, 0, 1);
       known.push({
         opponent,
         champion: answer.champion,
@@ -809,28 +845,32 @@
         rawScore: answer.matchupScore,
         games: answer.games,
         evidenceWeight: evidenceWeight(answer.games) * opponentLikelihoodWeight(state.role, opponent),
-        weaknessControl
+        weaknessControl: weaknessControlFromScore(answer.decisionScore)
       });
     });
 
     const evidenceWeightedCoverage = weightedAverage(known, (row) => row.score, (row) => row.evidenceWeight);
     const opponentBalancedCoverage = average(known, (row) => row.score);
-    const worstTailCoverage = tailAverage(known, (row) => row.score, CONFIG?.matchup?.worstTailShare ?? 0.20);
-    const matchupCoverage = weightedScore({
-      evidenceWeighted: evidenceWeightedCoverage ?? 0,
-      opponentBalanced: opponentBalancedCoverage ?? 0,
-      worstTail: worstTailCoverage ?? 0
-    }, CONFIG?.matchup?.coverageBlendWeights || { evidenceWeighted: 55, opponentBalanced: 30, worstTail: 15 });
+    const worstTailCoverage = tailAverage(known, (row) => row.score, CONFIG?.matchup?.worstTailShare ?? 0.15);
+    const observedCoverage = known.length
+      ? weightedScore({ evidenceWeighted: evidenceWeightedCoverage, opponentBalanced: opponentBalancedCoverage, worstTail: worstTailCoverage },
+        CONFIG?.matchup?.coverageBlendWeights || { evidenceWeighted: 45, opponentBalanced: 35, worstTail: 20 })
+      : null;
 
     const evidenceWeightedWeakness = weightedAverage(known, (row) => row.weaknessControl, (row) => row.evidenceWeight);
-    const worstTailWeakness = tailAverage(known, (row) => row.weaknessControl, CONFIG?.matchup?.worstTailShare ?? 0.20);
-    const weaknessControl = weightedScore({
-      evidenceWeighted: evidenceWeightedWeakness ?? 0,
-      worstTail: worstTailWeakness ?? 0
-    }, CONFIG?.matchup?.weaknessBlendWeights || { evidenceWeighted: 65, worstTail: 35 });
+    const worstTailWeakness = tailAverage(known, (row) => row.weaknessControl, CONFIG?.matchup?.worstTailShare ?? 0.15);
+    const observedWeaknessControl = known.length
+      ? weightedScore({ evidenceWeighted: evidenceWeightedWeakness, worstTail: worstTailWeakness },
+        CONFIG?.matchup?.weaknessBlendWeights || { evidenceWeighted: 25, worstTail: 75 })
+      : null;
 
     const totalMatchupGames = known.reduce((sum, row) => sum + row.games, 0);
     const completeness = opponents.length ? known.length / opponents.length : 1;
+    const unknownMatchupScore = clamp(CONFIG?.matchup?.unknownMatchupScore ?? 0.48, 0, 1);
+    const coveragePrior = unknownMatchupScore;
+    const weaknessPrior = weaknessControlFromScore(unknownMatchupScore);
+    const matchupCoverage = conservativeCompletenessAdjustment(observedCoverage, coveragePrior, completeness);
+    const weaknessControl = conservativeCompletenessAdjustment(observedWeaknessControl, weaknessPrior, completeness);
 
     return {
       answers,
@@ -842,6 +882,11 @@
       completeness,
       totalOpponents: opponents.length,
       diagnostics: {
+        completeness,
+        coveragePrior,
+        weaknessPrior,
+        observedCoverage,
+        observedWeaknessControl,
         evidenceWeightedCoverage,
         opponentBalancedCoverage,
         worstTailCoverage,
@@ -870,10 +915,17 @@
     return vector;
   }
 
+  function profileVectorCompleteness(champion) {
+    const vector = profileVector(champion);
+    if (!vector || !PROFILE_VECTOR_FIELDS.length) return 0;
+    const known = PROFILE_VECTOR_FIELDS.filter((field) => safeNumber(vector[field]) !== null).length;
+    return known / PROFILE_VECTOR_FIELDS.length;
+  }
+
   function vectorDistance(championA, championB) {
     const a = profileVector(championA);
     const b = profileVector(championB);
-    if (!a || !b) return null;
+    if (!a || !b || !PROFILE_VECTOR_FIELDS.length) return null;
     const squares = [];
     PROFILE_VECTOR_FIELDS.forEach((field) => {
       const x = safeNumber(a[field]);
@@ -881,17 +933,23 @@
       if (x === null || y === null) return;
       squares.push(((x - y) / 100) ** 2);
     });
-    if (!squares.length) return null;
-    return clamp(Math.sqrt(squares.reduce((sum, value) => sum + value, 0) / squares.length), 0, 1);
+    const minimumFields = Math.max(1, Math.round(safeNumber(CONFIG?.profileDiversity?.minimumComparableFields) ?? 3));
+    if (squares.length < Math.min(minimumFields, PROFILE_VECTOR_FIELDS.length)) return null;
+    const rawDistance = Math.sqrt(squares.reduce((sum, value) => sum + value, 0) / squares.length);
+    const comparableRatio = squares.length / PROFILE_VECTOR_FIELDS.length;
+    const missingPrior = clamp(CONFIG?.profileDiversity?.missingDistancePrior ?? 0.18, 0, 1);
+    return clamp(rawDistance * comparableRatio + missingPrior * (1 - comparableRatio), 0, 1);
   }
 
   function candidateProfileDiversity(candidate, pool) {
+    const missingPrior = clamp(CONFIG?.profileDiversity?.missingDistancePrior ?? 0.18, 0, 1);
     if (!pool.length) return 0.5;
     const distances = pool.map((champion) => vectorDistance(candidate, champion)).filter((value) => value !== null);
-    return distances.length ? Math.min(...distances) : 0.5;
+    return distances.length ? Math.min(...distances) : missingPrior;
   }
 
   function poolProfileDiversity(pool) {
+    const unknownScore = clamp(CONFIG?.profileDiversity?.unknownPoolScore ?? 20, 0, 100);
     if (pool.length < 2) return 50;
     const distances = [];
     for (let i = 0; i < pool.length; i += 1) {
@@ -900,22 +958,25 @@
         if (distance !== null) distances.push(distance);
       }
     }
-    return distances.length ? clamp((distances.reduce((sum, value) => sum + value, 0) / distances.length) * 100, 0, 100) : 50;
+    return distances.length
+      ? clamp((distances.reduce((sum, value) => sum + value, 0) / distances.length) * 100, 0, 100)
+      : unknownScore;
   }
 
   function damageProfile(champion) {
     const profile = profilesForRole()?.[champion] || {};
-    const physical = safeNumber(profile.pct_physical_dmg);
-    const magic = safeNumber(profile.pct_magic_dmg);
-    const trueDamage = safeNumber(profile.pct_true_dmg);
-    const knownValues = [physical, magic, trueDamage].filter((value) => value !== null);
-    if (!knownValues.length || knownValues.reduce((sum, value) => sum + Math.max(0, value), 0) <= 0) {
+    const rawPhysical = safeNumber(profile.pct_physical_dmg);
+    const rawMagic = safeNumber(profile.pct_magic_dmg);
+    const rawTrueDamage = safeNumber(profile.pct_true_dmg);
+    const knownValues = [rawPhysical, rawMagic, rawTrueDamage].filter((value) => value !== null);
+    const positiveTotal = knownValues.reduce((sum, value) => sum + Math.max(0, value), 0);
+    if (!knownValues.length || positiveTotal <= 0) {
       return { physical: null, magic: null, trueDamage: null, type: 'unknown', trueRelevant: false, known: false };
     }
 
-    const physicalShare = physical ?? 0;
-    const magicShare = magic ?? 0;
-    const trueShare = trueDamage ?? 0;
+    const physicalShare = Math.max(0, rawPhysical ?? 0) / positiveTotal;
+    const magicShare = Math.max(0, rawMagic ?? 0) / positiveTotal;
+    const trueShare = Math.max(0, rawTrueDamage ?? 0) / positiveTotal;
     const specialistMin = CONFIG?.damage?.specialistShareMin ?? 0.60;
     const gapMin = CONFIG?.damage?.specialistGapMin ?? 0.20;
     let type = 'hybrid';
@@ -948,7 +1009,11 @@
     const types = new Set(profiles.map((profile) => profile.type));
     const secondaryShare = CONFIG?.damage?.meaningfulSecondaryShare ?? 0.35;
     let knownScore = 60;
-    if (types.has('physical') && types.has('magic')) knownScore = scores.physicalAndMagic ?? 100;
+    if (types.has('physical') && types.has('magic')) {
+      knownScore = profiles.some((profile) => profile.trueRelevant)
+        ? (scores.physicalMagicAndTrue ?? scores.physicalAndMagic ?? 100)
+        : (scores.physicalAndMagic ?? 100);
+    }
     else if (types.has('hybrid') && (types.has('physical') || types.has('magic'))) knownScore = scores.specialistAndHybrid ?? 80;
     else if (types.size === 1 && types.has('hybrid')) knownScore = scores.hybridOnly ?? 60;
     else if (types.size === 1 && types.has('physical')) {
@@ -1011,30 +1076,39 @@
 
   function championDataConfidence(champion) {
     const games = profileGames(state.role, champion);
-    const profileCoverage = state.rigorousThreshold > 0
+    const relativeCoverage = state.rigorousThreshold > 0
       ? clamp(games / state.rigorousThreshold, 0, 1)
       : (games > 0 ? 1 : 0);
-    const opponents = relevantOpponents([champion]);
+    const absoluteTarget = Math.max(1, safeNumber(CONFIG?.confidence?.profileSampleTarget) ?? 500);
+    const absoluteCoverage = clamp(games / absoluteTarget, 0, 1);
+    const profileCoverage = Math.sqrt(relativeCoverage * absoluteCoverage);
+    const profileCompleteness = profileVectorCompleteness(champion);
+
+    const opponents = relevantOpponents().filter((opponent) => opponent !== champion);
     const directRows = opponents.map((opponent) => getMatchup(state.role, champion, opponent)).filter(Boolean);
     const knownCoverage = opponents.length ? directRows.length / opponents.length : 1;
-    const target = Math.max(1, safeNumber(CONFIG?.confidence?.matchupSampleTarget) ?? 25);
+    const target = Math.max(1, safeNumber(CONFIG?.confidence?.matchupSampleTarget) ?? 30);
     const matchupSample = directRows.length
       ? directRows.reduce((sum, row) => sum + clamp(row.games / target, 0, 1), 0) / directRows.length
       : 0;
     return weightedScore({
       profileGames: profileCoverage,
+      profileCompleteness,
       knownOpponents: knownCoverage,
       matchupSamples: matchupSample
-    }, CONFIG?.confidence?.championWeights || { profileGames: 40, knownOpponents: 40, matchupSamples: 20 }) * 100;
+    }, CONFIG?.confidence?.championWeights || {
+      profileGames: 30, profileCompleteness: 15, knownOpponents: 35, matchupSamples: 20
+    }) * 100;
   }
 
   // ==========================================================================
   // 4. NEXT-CHAMPION RECOMMENDATION
   // ==========================================================================
 
-  function candidateRawMetrics(candidate, pool, currentCore) {
-    const afterCore = evaluateMatchupCore([...pool, candidate]);
-    const comparisonOpponents = relevantOpponents([...pool, candidate]);
+  function candidateRawMetrics(candidate, pool, currentCore, currentEvaluation = null) {
+    const afterPool = [...pool, candidate];
+    const afterCore = evaluateMatchupCore(afterPool);
+    const comparisonOpponents = relevantOpponents();
     let improvedCount = 0;
     let fixedCount = 0;
     let newCoverageCount = 0;
@@ -1044,7 +1118,7 @@
     const fixedAbove = CONFIG?.matchup?.fixedAbove ?? 0.52;
 
     comparisonOpponents.forEach((opponent) => {
-      const directCandidate = getMatchup(state.role, candidate, opponent);
+      const directCandidate = opponent === candidate ? null : getMatchup(state.role, candidate, opponent);
       if (directCandidate) knownCount += 1;
       const before = currentCore.answers.get(opponent);
       const after = afterCore.answers.get(opponent);
@@ -1066,14 +1140,22 @@
     const matchupComplement = weightedScore({
       coverageGain: marginalCoverageGain,
       weaknessGain: weaknessFix
-    }, CONFIG?.recommendation?.matchupComplementWeights || { coverageGain: 70, weaknessGain: 30 });
+    }, CONFIG?.recommendation?.matchupComplementWeights || { coverageGain: 55, weaknessGain: 45 });
+
     const beforeDamage = poolDamageVariety(pool);
-    const afterDamage = poolDamageVariety([...pool, candidate]);
-    const fullDamageGainAt = Math.max(1, safeNumber(CONFIG?.recommendation?.fullDamageGainAt) ?? 70);
+    const afterDamage = poolDamageVariety(afterPool);
+    const fullDamageGainAt = Math.max(1, safeNumber(CONFIG?.recommendation?.fullDamageGainAt) ?? 60);
     const damageImprovement = clamp((afterDamage - beforeDamage) / fullDamageGainAt, 0, 1);
+
+    const beforeEvaluation = currentEvaluation || evaluatePool(pool);
+    const afterEvaluation = evaluatePool(afterPool);
+    const projectedPoolDelta = (afterEvaluation?.finalScore ?? 0) - (beforeEvaluation?.finalScore ?? 0);
 
     return {
       candidate,
+      projectedPoolGain: Math.max(0, projectedPoolDelta) / 100,
+      projectedPoolDelta,
+      projectedFinalScore: afterEvaluation?.finalScore ?? null,
       matchupComplement,
       marginalCoverageGain,
       weaknessFix,
@@ -1085,9 +1167,8 @@
       fixedCount,
       newCoverageCount,
       knownCount,
-      relevantOpponentCount: comparisonOpponents.length,
+      relevantOpponentCount: comparisonOpponents.filter((opponent) => opponent !== candidate).length,
       afterDamage,
-      weightedMatchupGames: afterCore.totalMatchupGames,
       belowRigorous: state.rigorousThreshold > 0 && profileGames(state.role, candidate) < state.rigorousThreshold
     };
   }
@@ -1117,6 +1198,7 @@
 
   function buildCandidateRows(pool) {
     const currentCore = evaluateMatchupCore(pool);
+    const currentEvaluation = evaluatePool(pool);
     const allRemaining = championsForRole().filter((champion) => !pool.includes(champion));
     const candidateMode = CONFIG?.dataSelection?.recommendationCandidates || 'rigorous-first';
     let recommendationPool = candidateMode === 'all'
@@ -1127,10 +1209,11 @@
       recommendationPool = [...recommendationPool, ...supplements];
     }
 
-    const rows = recommendationPool.map((candidate) => candidateRawMetrics(candidate, pool, currentCore));
-    ['matchupComplement', 'strength', 'damageImprovement', 'profileDiversity', 'confidence'].forEach((key) => percentileRanks(rows, key));
+    const rows = recommendationPool.map((candidate) => candidateRawMetrics(candidate, pool, currentCore, currentEvaluation));
+    ['projectedPoolGain', 'matchupComplement', 'strength', 'damageImprovement', 'profileDiversity', 'confidence'].forEach((key) => percentileRanks(rows, key));
     rows.forEach(applyRecommendationScore);
     rows.sort((a, b) => b.score - a.score
+      || b.projectedPoolDelta - a.projectedPoolDelta
       || b.matchupComplement - a.matchupComplement
       || b.strength - a.strength
       || profileGames(state.role, b.candidate) - profileGames(state.role, a.candidate)
@@ -1140,7 +1223,9 @@
 
   function applyRecommendationScore(row) {
     const fullMatchupGainAt = Math.max(0.0001, safeNumber(CONFIG?.recommendation?.fullMatchupGainAt) ?? 0.035);
+    const fullPoolScoreGainAt = Math.max(0.1, safeNumber(CONFIG?.recommendation?.fullPoolScoreGainAt) ?? 10);
     const absolute = {
+      projectedPoolGain: clamp(Math.max(0, row.projectedPoolDelta) / fullPoolScoreGainAt, 0, 1) * 100,
       matchupComplement: clamp(row.matchupComplement / fullMatchupGainAt, 0, 1) * 100,
       strength: clamp(row.strength, 0, 1) * 100,
       damageImprovement: clamp(row.damageImprovement, 0, 1) * 100,
@@ -1152,7 +1237,8 @@
       row.componentScores[key] = normalizedRecommendationMetric(absolute[key], row[`${key}Pct`] ?? 50);
     });
     row.score = weightedScore(row.componentScores, CONFIG?.recommendation?.weights || {
-      matchupComplement: 50, strength: 20, damageImprovement: 15, profileDiversity: 10, confidence: 5
+      projectedPoolGain: 48, matchupComplement: 34, strength: 4,
+      damageImprovement: 4, profileDiversity: 5, confidence: 5
     });
     return row;
   }
@@ -1183,12 +1269,17 @@
       profileDiversity,
       dataConfidence
     };
-    const finalScore = weightedScore(parts, CONFIG?.poolEvaluation?.weights || {
-      matchupCoverage: 30, weaknessControl: 25, averageChampionStrength: 15,
-      damageVariety: 15, profileDiversity: 5, dataConfidence: 10
+    const rawFinalScore = weightedScore(parts, CONFIG?.poolEvaluation?.weights || {
+      matchupCoverage: 42, weaknessControl: 28, averageChampionStrength: 8,
+      damageVariety: 8, profileDiversity: 5, dataConfidence: 9
     });
+    const confidenceFloor = clamp(CONFIG?.poolEvaluation?.confidenceMultiplierFloor ?? 0.88, 0, 1);
+    const confidenceMultiplier = confidenceFloor + (1 - confidenceFloor) * clamp(dataConfidence / 100, 0, 1);
+    const finalScore = clamp(rawFinalScore * confidenceMultiplier, 0, 100);
     return {
       ...parts,
+      rawFinalScore,
+      confidenceMultiplier,
       finalScore,
       knownMatchups: matchupCore.known.length,
       totalOpponents: matchupCore.totalOpponents,
@@ -1204,8 +1295,8 @@
   }
 
   function toneForScore(score) {
-    if (score >= 70) return 'tone-good';
-    if (score >= 50) return 'tone-mid';
+    if (score >= 75) return 'tone-good';
+    if (score >= 45) return 'tone-mid';
     return 'tone-bad';
   }
 
@@ -1223,24 +1314,30 @@
 
   function recommendationReasons(row) {
     const reasons = [];
+    if (Math.abs(row.projectedPoolDelta) >= 0.05) {
+      reasons.push({
+        type: row.projectedPoolDelta > 0 ? 'plus' : 'minus',
+        text: `Projected final pool score: ${row.projectedPoolDelta > 0 ? '+' : ''}${row.projectedPoolDelta.toFixed(1)} points.`
+      });
+    }
     if (row.fixedCount > 0) reasons.push({ type: 'plus', text: `Resolves ${row.fixedCount} ${row.fixedCount === 1 ? 'weakness' : 'weaknesses'} with sufficient statistical evidence.` });
     if (row.improvedCount > 0) reasons.push({ type: 'plus', text: `Becomes the best answer against ${row.improvedCount} relevant opponents.` });
     if (row.newCoverageCount > 0) reasons.push({ type: 'plus', text: `Adds a known answer against ${row.newCoverageCount} ${row.newCoverageCount === 1 ? 'previously uncovered opponent' : 'previously uncovered opponents'}.` });
     const damage = damageProfile(row.candidate);
     const currentTypes = new Set(state.selected.map((champion) => damageProfile(champion).type));
-    if (damage.type === 'magic' && !currentTypes.has('magic')) reasons.push({ type: 'plus', text: 'Adds a true magic-damage option.' });
-    else if (damage.type === 'physical' && !currentTypes.has('physical')) reasons.push({ type: 'plus', text: 'Adds a true physical-damage option.' });
+    if (damage.type === 'magic' && !currentTypes.has('magic')) reasons.push({ type: 'plus', text: 'Adds a clear magic-damage option.' });
+    else if (damage.type === 'physical' && !currentTypes.has('physical')) reasons.push({ type: 'plus', text: 'Adds a clear physical-damage option.' });
     else if (damage.type === 'hybrid') reasons.push({ type: 'info', text: 'Adds a hybrid damage profile.' });
     else if (damage.type === 'unknown') reasons.push({ type: 'minus', text: 'Damage profile unavailable in the dataset.' });
     const diversityHigh = CONFIG?.recommendation?.diversityHigh ?? 0.35;
     const diversityLow = CONFIG?.recommendation?.diversityLow ?? 0.16;
     if (row.profileDiversity >= diversityHigh) reasons.push({ type: 'plus', text: 'Profile has little overlap with the champions already selected.' });
-    else if (row.profileDiversity < diversityLow) reasons.push({ type: 'minus', text: 'Profile is similar to a choice already present.' });
+    else if (row.profileDiversity < diversityLow) reasons.push({ type: 'minus', text: 'Profile is similar to a choice already present or is insufficiently documented.' });
     if (row.belowRigorous) reasons.push({ type: 'minus', text: 'Statistical coverage below the Rigorous threshold.' });
     else reasons.push({ type: 'info', text: `Rigorous coverage: ${integer(profileGames(state.role, row.candidate))} matches in the role.` });
-    const warningRatio = CONFIG?.recommendation?.knownOpponentWarningRatio ?? 0.60;
-    if (row.knownCount < Math.ceil(row.relevantOpponentCount * warningRatio)) reasons.push({ type: 'minus', text: 'Several direct matchups are unavailable: less reliable evaluation.' });
-    return reasons.slice(0, 4);
+    const warningRatio = CONFIG?.recommendation?.knownOpponentWarningRatio ?? 0.65;
+    if (row.knownCount < Math.ceil(row.relevantOpponentCount * warningRatio)) reasons.push({ type: 'minus', text: 'Several direct matchups are unavailable: the projection is conservatively penalized.' });
+    return reasons.slice(0, 5);
   }
 
   // ==========================================================================
@@ -1261,7 +1358,7 @@
   }
 
   function renderSizeChoices() {
-    byId('sizeGrid').innerHTML = [2, 3, 4, 5].map((size) => `<button class="choice${state.size === size ? ' selected' : ''}" type="button" data-size="${size}" aria-pressed="${state.size === size ? 'true' : 'false'}">${size}</button>`).join('');
+    byId('sizeGrid').innerHTML = POOL_SIZES.map((size) => `<button class="choice${state.size === size ? ' selected' : ''}" type="button" data-size="${size}" aria-pressed="${state.size === size ? 'true' : 'false'}">${size}</button>`).join('');
   }
 
   function renderThreshold() {
@@ -1273,10 +1370,8 @@
     const allCount = championsForRole().length;
     const coverage = allCount ? state.rigorousChampions.length / allCount : 0;
     const scope = CONFIG?.dataSelection?.evaluationOpponents === 'rigorous'
-      ? 'The evaluation covers only this group.'
-      : CONFIG?.dataSelection?.evaluationOpponents === 'blend'
-        ? 'The evaluation covers the entire lane, but gives greater weight to Rigorous and more popular opponents.'
-        : 'The evaluation covers the entire lane; the Rigorous group is used mainly for recommendations.';
+      ? 'The evaluation covers only this statistically robust group.'
+      : 'The evaluation covers the entire lane; the Rigorous group is used mainly for recommendations.';
     box.innerHTML = `<strong>Rigorous Filter:</strong> at least ${integer(state.rigorousThreshold)} matches in the role. The filter is passed by ${state.rigorousChampions.length}/${allCount} champions (${pct(coverage, 0)}). ${esc(scope)}`;
   }
 
@@ -1289,14 +1384,12 @@
     const rigorous = calculateRigorousSet(role);
     state.rigorousThreshold = rigorous.threshold;
     state.rigorousChampions = rigorous.eligible;
-    // 'blend' uses the entire lane like 'all': the bias toward the
-    // Rigorous group is applied through the weight (opponentLikelihoodWeight), not by
-    // excluding opponents from the evaluated set.
     state.opponents = CONFIG?.dataSelection?.evaluationOpponents === 'rigorous'
       ? rigorous.eligible.slice()
       : rigorous.all.slice();
     state.firstChampion = null;
     byId('firstChampion').value = '';
+    byId('firstChampion').setAttribute('aria-invalid', 'false');
     const firstValidation = byId('firstValidation');
     if (firstValidation) firstValidation.hidden = true;
     state.customChampion = null;
@@ -1356,12 +1449,12 @@
 
     function render(query = '') {
       const term = String(query).trim().toLocaleLowerCase('it');
-      filtered = options.filter((option) => option.label.toLocaleLowerCase('it').includes(term)).slice(0, 60);
+      filtered = options.filter((option) => option.label.toLocaleLowerCase('it').includes(term)).slice(0, COMBO_OPTION_LIMIT);
       activeIndex = Math.min(activeIndex, filtered.length - 1);
       list.innerHTML = filtered.length ? filtered.map((option, index) => `
-        <button type="button" id="${inputId}-option-${index}" class="combo-option${option.low ? ' low' : ''}${index === activeIndex ? ' active' : ''}" role="option" tabindex="-1" aria-selected="${index === activeIndex ? 'true' : 'false'}" data-value="${esc(option.value)}">
+        <div id="${inputId}-option-${index}" class="combo-option${option.low ? ' low' : ''}${index === activeIndex ? ' active' : ''}" role="option" aria-selected="${index === activeIndex ? 'true' : 'false'}" data-value="${esc(option.value)}">
           <strong>${champHtml(option.label, 'sm')}</strong><small>${esc(option.meta || '')}</small>
-        </button>`).join('') : '<div class="combo-empty">No champion found.</div>';
+        </div>`).join('') : '<div class="combo-empty">No champion found.</div>';
       setExpanded(document.activeElement === input);
       if (activeIndex >= 0 && filtered[activeIndex]) input.setAttribute('aria-activedescendant', `${inputId}-option-${activeIndex}`);
       else input.removeAttribute('aria-activedescendant');
@@ -1372,6 +1465,7 @@
       input.value = option.label;
       setExpanded(false);
       activeIndex = -1;
+      input.setAttribute('aria-invalid', 'false');
       onSelect(option.value);
     }
 
@@ -1382,7 +1476,7 @@
     });
     input.addEventListener('input', () => {
       onSelect(null, true);
-      if (inputId === 'firstChampion') { const validation = byId('firstValidation'); if (validation) validation.hidden = true; }
+      if (inputId === 'firstChampion') { const validation = byId('firstValidation'); if (validation) validation.hidden = true; input.setAttribute('aria-invalid', 'false'); }
       if (excludeSelected) options = championOptions(true);
       render(input.value);
       setExpanded(true);
@@ -1428,9 +1522,9 @@
     }).join('');
 
     const scoreItems = [
-      ['Current evaluation', evaluation?.finalScore, 'Score recalculated across the entire pool.'],
-      ['Matchup coverage', evaluation?.matchupCoverage, `Summary of statistical average, opponent-balanced average, and ${Math.round((CONFIG?.matchup?.worstTailShare ?? 0.20) * 100)}% worst tail.`],
-      ['Weakness control', evaluation?.weaknessControl, 'Rewards average resilience while preserving weight for the worst matchups.'],
+      ['Current evaluation', evaluation?.finalScore, `Reliability-adjusted score; raw weighted score ${scoreFmt(evaluation?.rawFinalScore)}.`],
+      ['Matchup coverage', evaluation?.matchupCoverage, `Fixed opponent universe; optimistic values are pulled toward the configured prior when matchup coverage is incomplete.`],
+      ['Weakness control', evaluation?.weaknessControl, `Calibrated from ${pct(CONFIG?.matchup?.weaknessScoreFloor ?? 0.40, 0)} to ${pct(CONFIG?.matchup?.weaknessScoreFullAt ?? 0.52, 0)}, with the worst tail dominant.`],
       ['Overall strength', evaluation?.averageChampionStrength, 'Individual strength of the champions.'],
       ['Damage variety', evaluation?.damageVariety, 'Physical, magic, and hybrid options; missing data penalizes the value.'],
       ['Reliability', evaluation?.dataConfidence, `${evaluation?.knownMatchups ?? 0}/${evaluation?.totalOpponents ?? 0} opponents with a known answer.`]
@@ -1453,10 +1547,10 @@
     }
     state.recommendationRows = buildCandidateRows(state.selected);
     const top = state.recommendationRows.slice(0, RECOMMENDATION_LIMIT);
-    byId('recoCount').textContent = `Choice ${state.selected.length + 1} di ${state.size}`;
+    byId('recoCount').textContent = `Choice ${state.selected.length + 1} of ${state.size}`;
     byId('recommendations').innerHTML = top.length ? top.map((row, index) => {
       const reasons = recommendationReasons(row);
-      return `<article class="reco"><div class="reco-rank">${index + 1}</div><div><h3>${champHtml(row.candidate, 'md')}</h3><div class="reco-sub">WR ${pct(profilesForRole()?.[row.candidate]?.general_winrate)} · ${integer(profileGames(state.role, row.candidate))} matches</div></div><div class="reco-score ${toneForScore(row.score)}">${scoreFmt(row.score)}<div class="reco-sub">index /100</div></div><div class="reco-reasons">${reasons.map((reason) => `<div class="reason ${reason.type}">${esc(reason.text)}</div>`).join('')}</div><button type="button" data-add-champion="${esc(row.candidate)}">Add</button></article>`;
+      return `<article class="reco"><div class="reco-rank">${index + 1}</div><div><h3>${champHtml(row.candidate, 'md')}</h3><div class="reco-sub">WR ${pct(profilesForRole()?.[row.candidate]?.general_winrate)} · ${integer(profileGames(state.role, row.candidate))} matches · projected ${row.projectedPoolDelta >= 0 ? '+' : ''}${row.projectedPoolDelta.toFixed(1)}</div></div><div class="reco-score ${toneForScore(row.score)}">${scoreFmt(row.score)}<div class="reco-sub">index /100</div></div><div class="reco-reasons">${reasons.map((reason) => `<div class="reason ${reason.type}">${esc(reason.text)}</div>`).join('')}</div><button type="button" data-add-champion="${esc(row.candidate)}">Add</button></article>`;
     }).join('') : '<div class="notice warn">No other champions are available for this lane.</div>';
     panel.hidden = false;
     customPanel.hidden = false;
@@ -1467,12 +1561,13 @@
   function customCandidateRow(champion) {
     if (!champion || state.selected.includes(champion)) return null;
     const currentCore = evaluateMatchupCore(state.selected);
+    const currentEvaluation = evaluatePool(state.selected);
     const rows = buildCandidateRows(state.selected);
     const found = rows.find((row) => row.candidate === champion);
     if (found) return found;
-    const raw = candidateRawMetrics(champion, state.selected, currentCore);
+    const raw = candidateRawMetrics(champion, state.selected, currentCore, currentEvaluation);
     const comparison = [...rows, raw];
-    ['matchupComplement', 'strength', 'damageImprovement', 'profileDiversity', 'confidence'].forEach((key) => percentileRanks(comparison, key));
+    ['projectedPoolGain', 'matchupComplement', 'strength', 'damageImprovement', 'profileDiversity', 'confidence'].forEach((key) => percentileRanks(comparison, key));
     applyRecommendationScore(raw);
     return raw;
   }
@@ -1489,7 +1584,7 @@
     }
     const warning = row.belowRigorous ? ' Personal choice below the Rigorous threshold: less reliable evaluation.' : '';
     const damage = damageProfile(row.candidate);
-    preview.innerHTML = `<div class="preview-card"><div><h3>${champHtml(row.candidate, 'md')}</h3><p>Addition Index ${scoreFmt(row.score)}/100. Becomes the best answer in ${row.improvedCount} matchups, resolves ${row.fixedCount} of them, and adds ${row.newCoverageCount} previously missing answers.${esc(warning)} Damage profile: ${esc(damageTypeLabel(damage.type))}.</p></div><div class="preview-score ${toneForScore(row.score)}">${scoreFmt(row.score)}</div></div>`;
+    preview.innerHTML = `<div class="preview-card"><div><h3>${champHtml(row.candidate, 'md')}</h3><p>Addition Index ${scoreFmt(row.score)}/100 · projected final-score change ${row.projectedPoolDelta >= 0 ? '+' : ''}${row.projectedPoolDelta.toFixed(1)}. Becomes the best answer in ${row.improvedCount} matchups, resolves ${row.fixedCount} of them, and adds ${row.newCoverageCount} previously missing answers.${esc(warning)} Damage profile: ${esc(damageTypeLabel(damage.type))}.</p></div><div class="preview-score ${toneForScore(row.score)}">${scoreFmt(row.score)}</div></div>`;
     preview.hidden = false;
   }
 
@@ -1540,7 +1635,7 @@
       scopeSelect.value = state.quickScope;
       const q50Option = scopeSelect.querySelector('option[value="q50"]');
       const allOption = scopeSelect.querySelector('option[value="all"]');
-      if (q50Option) q50Option.textContent = `Q50 · ${matrix.q50Count}`;
+      if (q50Option) q50Option.textContent = `${POOL_COUNTER_QUANTILE_LABEL} · ${matrix.q50Count}`;
       if (allOption) allOption.textContent = `All · ${matrix.allCount}`;
     }
     if (metricSelect) metricSelect.value = state.quickMetric;
@@ -1551,7 +1646,7 @@
     const metric = POOL_COUNTER_METRICS[state.quickMetric] || POOL_COUNTER_METRICS.wilson;
     const scopeText = state.quickScope === 'all'
       ? `all ${matrix.allCount} champions in the role`
-      : `${matrix.q50Count} Q50 champions with at least ${integer(matrix.q50Threshold)} matches`;
+      : `${matrix.q50Count} ${POOL_COUNTER_QUANTILE_LABEL} champions with at least ${integer(matrix.q50Threshold)} matches`;
     byId('quickCounterSummary').innerHTML = `<strong>${esc(roleLabel(state.quickRole))}</strong> · Pool: <strong>${state.quickPool.map(esc).join(' / ')}</strong> · ${esc(scopeText)} · sorting: <strong>${esc(metric.label)}</strong>.`;
     byId('quickCounterCount').textContent = `${matrix.rows.length} ${matrix.rows.length === 1 ? 'row' : 'rows'}`;
     const download = byId('quickDownloadBtn');
@@ -1602,7 +1697,8 @@
   }
 
   function csvCell(value) {
-    const text = String(value ?? '');
+    let text = String(value ?? '');
+    if (/^[=+@-]/.test(text)) text = `'${text}`;
     return `"${text.replaceAll('"', '""')}"`;
   }
 
@@ -1681,7 +1777,7 @@
   }
 
   function banToneClass(row) {
-    if (row.noSafeAnswer >= 0.55 || row.aggregateThreat >= 0.56) return 'danger';
+    if (row.bestAnswerThreat >= 0.55 || row.aggregateThreat >= 0.56) return 'danger';
     if (row.aggregateThreat >= 0.53 || row.worstExposure >= 0.57) return 'warning';
     if (row.aggregateThreat >= 0.51) return 'info';
     return 'neutral';
@@ -1708,7 +1804,7 @@
       scopeSelect.value = state.banScope;
       const q50Option = scopeSelect.querySelector('option[value="q50"]');
       const allOption = scopeSelect.querySelector('option[value="all"]');
-      if (q50Option) q50Option.textContent = `Q50 · ${result.q50Count} champions`;
+      if (q50Option) q50Option.textContent = `${BAN_RECOMMENDATION_QUANTILE_LABEL} · ${result.q50Count} champions`;
       if (allOption) allOption.textContent = `All · ${result.allCount} champions`;
     }
     if (limitSelect) {
@@ -1723,17 +1819,14 @@
 
     const scopeText = state.banScope === 'all'
       ? `all ${result.allCount} available champions`
-      : `i ${result.q50Count} Q50 champions with at least ${integer(result.q50Threshold)} matches`;
+      : `the ${result.q50Count} ${BAN_RECOMMENDATION_QUANTILE_LABEL} champions with at least ${integer(result.q50Threshold)} matches`;
     const poolText = result.pool.join(' / ');
-    const exclusionCopy = result.excludedFavorableSensitiveCount > 0
-      ? ` ${integer(result.excludedFavorableSensitiveCount)} candidates excluded because their most sensitive matchup still favors the pool in both WR and WR difference.`
-      : '';
-    byId('banRecommendationSummary').innerHTML = `<strong>${esc(roleLabel(state.role))} · ${esc(poolText)}:</strong> comparison ${esc(scopeText)}. Results are sorted in strictly descending order by final ban index; WR/Δ, popularity, and snowballing contribute to the value according to the configured weights.${esc(exclusionCopy)}`;
+    byId('banRecommendationSummary').innerHTML = `<strong>${esc(roleLabel(state.role))} · ${esc(poolText)}:</strong> comparison ${esc(scopeText)}. Results are sorted by the final ban index. Matchup danger is dominant; popularity and candidate-oriented snowball pressure are gated by that danger. No candidate is removed because of a single favorable matchup.`;
     byId('banResultCount').textContent = `${result.rows.length} ban`;
 
     const list = byId('banRecommendationRows');
     if (!result.rows.length) {
-      list.innerHTML = '<div class="counter-empty">No candidates remain: the available matchups are insufficient, or the most sensitive matchup still favors the pool in both WR and WR difference.</div>';
+      list.innerHTML = '<div class="counter-empty">No candidate has enough direct matchup data for a reliable ban evaluation.</div>';
       panel.hidden = false;
       return;
     }
@@ -1800,7 +1893,7 @@
       scopeSelect.value = state.counterScope;
       const q50Option = scopeSelect.querySelector('option[value="q50"]');
       const allOption = scopeSelect.querySelector('option[value="all"]');
-      if (q50Option) q50Option.textContent = `Q50 · ${matrix.q50Count} champions`;
+      if (q50Option) q50Option.textContent = `${POOL_COUNTER_QUANTILE_LABEL} · ${matrix.q50Count} champions`;
       if (allOption) allOption.textContent = `All · ${matrix.allCount} champions`;
     }
     if (metricSelect) metricSelect.value = state.counterMetric;
@@ -1810,7 +1903,7 @@
 
     const scopeText = state.counterScope === 'all'
       ? `all ${matrix.allCount} champions available in the role`
-      : `i ${matrix.q50Count} Q50 champions with at least ${integer(matrix.q50Threshold)} matches in the role`;
+      : `the ${matrix.q50Count} ${POOL_COUNTER_QUANTILE_LABEL} champions with at least ${integer(matrix.q50Threshold)} matches in the role`;
     byId('counterCoverageSummary').innerHTML = `<strong>${esc(roleLabel(state.role))}:</strong> analyzing ${esc(scopeText)}. For each opponent, the pool champions are ranked by <strong>${esc(metric.label)}</strong>. When the champion in the row is already in the pool, it cannot counter itself.`;
     byId('counterMetricNote').textContent = state.counterMetric === 'wilson'
       ? `${metric.description} Selected confidence level: ${state.counterConfidence}%.`
@@ -1860,7 +1953,7 @@
     ];
     const copyText = `${roleLabel(state.role).toUpperCase()} — ${state.selected.join(' / ')}`;
     byId('finalContent').innerHTML = `
-      <div class="final-hero"><div class="final-score">${scoreFmt(evaluation.finalScore)}</div><div><div class="micro-label">Final statistical evaluation</div><h2>${esc(finalLabel(evaluation.finalScore))}</h2><p>The score describes the statistical completeness of the pool, not personal mastery. The weights shown here come directly from <code>pool.config.js</code>.</p></div></div>
+      <div class="final-hero"><div class="final-score">${scoreFmt(evaluation.finalScore)}</div><div><div class="micro-label">Final statistical evaluation</div><h2>${esc(finalLabel(evaluation.finalScore))}</h2><p>The score describes statistical pool quality, not personal mastery. It uses a fixed opponent universe, conservative missing-data adjustment, and a reliability multiplier (${(evaluation.confidenceMultiplier * 100).toFixed(1)}% of the raw weighted score).</p></div></div>
       <div class="breakdown">${fields.map(([label, value, weight]) => `<div class="metric"><div class="metric-top"><span>${esc(label)}</span><strong>${scoreFmt(value)} · ${Math.round(weight || 0)}%</strong></div><div class="bar"><span style="width:${clamp(value, 0, 100)}%"></span></div></div>`).join('')}</div>
       <div class="copy-box"><textarea id="copyOutput" readonly>${esc(copyText)}</textarea><button id="copyBtn" class="secondary" type="button">Copy the pool</button></div>`;
     panel.hidden = false;
@@ -1911,11 +2004,13 @@
     const validation = byId('firstValidation');
     if (typed && !state.firstChampion && !exact) {
       if (validation) validation.hidden = false;
+      byId('firstChampion').setAttribute('aria-invalid', 'true');
       byId('firstChampion').focus();
       announce('Select a valid champion from the list or leave the field empty.');
       return;
     }
     if (validation) validation.hidden = true;
+    byId('firstChampion').setAttribute('aria-invalid', 'false');
     const first = state.firstChampion || exact || bestAutomaticFirst();
     if (!first) return;
     state.selected = [first];
@@ -1957,12 +2052,14 @@
   }
 
   function validateConfiguration() {
+    const errors = [];
     const warnings = [];
     const weightGroups = [
       ['matchup.rawScoreWeights', CONFIG?.matchup?.rawScoreWeights],
       ['matchup.coverageBlendWeights', CONFIG?.matchup?.coverageBlendWeights],
       ['matchup.weaknessBlendWeights', CONFIG?.matchup?.weaknessBlendWeights],
       ['recommendation.weights', CONFIG?.recommendation?.weights],
+      ['recommendation.matchupComplementWeights', CONFIG?.recommendation?.matchupComplementWeights],
       ['poolEvaluation.weights', CONFIG?.poolEvaluation?.weights],
       ['banRecommendation.weights', CONFIG?.banRecommendation?.weights],
       ['banRecommendation.matchupWeights', CONFIG?.banRecommendation?.matchupWeights],
@@ -1972,16 +2069,75 @@
     ];
     weightGroups.forEach(([name, weights]) => {
       const total = Object.values(weights || {}).reduce((sum, value) => sum + Math.max(0, safeNumber(value) ?? 0), 0);
-      if (total <= 0) warnings.push(`${name}: enter at least one weight greater than zero.`);
+      if (total <= 0) errors.push(`${name}: enter at least one weight greater than zero.`);
     });
-    const quantile = safeNumber(CONFIG?.dataSelection?.rigorousQuantile);
-    if (quantile === null || quantile < 0 || quantile > 1) warnings.push('dataSelection.rigorousQuantile must be between 0 and 1.');
+
+    const requireRange = (name, value, min, max) => {
+      const number = safeNumber(value);
+      if (number === null || number < min || number > max) errors.push(`${name} must be between ${min} and ${max}.`);
+    };
+    const requirePositive = (name, value) => {
+      const number = safeNumber(value);
+      if (number === null || number <= 0) errors.push(`${name} must be greater than zero.`);
+    };
+
+    requireRange('dataSelection.rigorousQuantile', CONFIG?.dataSelection?.rigorousQuantile, 0, 1);
+    if (!['all', 'rigorous'].includes(CONFIG?.dataSelection?.evaluationOpponents)) {
+      errors.push("dataSelection.evaluationOpponents must be 'all' or 'rigorous'.");
+    }
+    requireRange('matchup.neutralWinrate', CONFIG?.matchup?.neutralWinrate, 0, 1);
+    requireRange('matchup.worstTailShare', CONFIG?.matchup?.worstTailShare, 0.01, 1);
+    requireRange('matchup.unknownMatchupScore', CONFIG?.matchup?.unknownMatchupScore, 0, 1);
+    requireRange('matchup.weaknessScoreFloor', CONFIG?.matchup?.weaknessScoreFloor, 0, 1);
+    requireRange('matchup.weaknessScoreFullAt', CONFIG?.matchup?.weaknessScoreFullAt, 0, 1);
+    if ((safeNumber(CONFIG?.matchup?.weaknessScoreFullAt) ?? 0) <= (safeNumber(CONFIG?.matchup?.weaknessScoreFloor) ?? 1)) {
+      errors.push('matchup.weaknessScoreFullAt must be greater than weaknessScoreFloor.');
+    }
+    if ((safeNumber(CONFIG?.matchup?.fixedAbove) ?? 0) <= (safeNumber(CONFIG?.matchup?.weakBelow) ?? 1)) {
+      errors.push('matchup.fixedAbove must be greater than weakBelow.');
+    }
+    ['shrinkageGames', 'evidenceWeightExponent', 'opponentLikelihoodExponent', 'completenessShrinkExponent'].forEach((key) => {
+      const number = safeNumber(CONFIG?.matchup?.[key]);
+      if (number === null || number < 0) errors.push(`matchup.${key} must be zero or greater.`);
+    });
+
     const floor = safeNumber(CONFIG?.championStrength?.winrateFloor);
     const ceiling = safeNumber(CONFIG?.championStrength?.winrateCeiling);
-    if (floor === null || ceiling === null || ceiling <= floor) warnings.push('championStrength.winrateCeiling must be greater than winrateFloor.');
-    if (!['all', 'rigorous', 'blend'].includes(CONFIG?.dataSelection?.evaluationOpponents)) warnings.push("dataSelection.evaluationOpponents must be 'all', 'rigorous', or 'blend'.");
-    warnings.forEach((warning) => console.warn(`[Pool Builder config] ${warning}`));
-    return warnings;
+    if (floor === null || ceiling === null || ceiling <= floor) errors.push('championStrength.winrateCeiling must be greater than winrateFloor.');
+
+    if (!Array.isArray(CONFIG?.profileDiversity?.fields) || !CONFIG.profileDiversity.fields.length) {
+      errors.push('profileDiversity.fields must contain at least one field.');
+    }
+    requirePositive('confidence.profileSampleTarget', CONFIG?.confidence?.profileSampleTarget);
+    requirePositive('confidence.matchupSampleTarget', CONFIG?.confidence?.matchupSampleTarget);
+    requirePositive('recommendation.fullMatchupGainAt', CONFIG?.recommendation?.fullMatchupGainAt);
+    requirePositive('recommendation.fullPoolScoreGainAt', CONFIG?.recommendation?.fullPoolScoreGainAt);
+    requirePositive('recommendation.fullDamageGainAt', CONFIG?.recommendation?.fullDamageGainAt);
+    requireRange('recommendation.relativeRankBlend', CONFIG?.recommendation?.relativeRankBlend, 0, 1);
+    requireRange('poolEvaluation.confidenceMultiplierFloor', CONFIG?.poolEvaluation?.confidenceMultiplierFloor, 0, 1);
+
+    requireRange('banRecommendation.neutralThreat', CONFIG?.banRecommendation?.neutralThreat, 0, 1);
+    requireRange('banRecommendation.fullThreatAt', CONFIG?.banRecommendation?.fullThreatAt, 0, 1);
+    if ((safeNumber(CONFIG?.banRecommendation?.fullThreatAt) ?? 0) <= (safeNumber(CONFIG?.banRecommendation?.neutralThreat) ?? 1)) {
+      errors.push('banRecommendation.fullThreatAt must be greater than neutralThreat.');
+    }
+    requireRange('banRecommendation.safeAnswerThreatMax', CONFIG?.banRecommendation?.safeAnswerThreatMax, 0, 1);
+    requireRange('banRecommendation.unknownThreatPrior', CONFIG?.banRecommendation?.unknownThreatPrior, 0, 1);
+    requirePositive('banRecommendation.fullSnowballAt', CONFIG?.banRecommendation?.fullSnowballAt);
+
+    if (!POOL_SIZES.length) errors.push('ui.poolSizes must contain at least one integer between 1 and 10.');
+    const labels = CONFIG?.poolEvaluation?.labels;
+    if (!Array.isArray(labels) || !labels.length) errors.push('poolEvaluation.labels must contain at least one label.');
+    else {
+      labels.forEach((entry, index) => {
+        requireRange(`poolEvaluation.labels[${index}].min`, entry?.min, 0, 100);
+        if (!String(entry?.text || '').trim()) errors.push(`poolEvaluation.labels[${index}].text cannot be empty.`);
+      });
+    }
+
+    errors.forEach((message) => console.error(`[Pool Builder config] ${message}`));
+    warnings.forEach((message) => console.warn(`[Pool Builder config] ${message}`));
+    return { errors, warnings };
   }
 
   function renderConfigurationSummary() {
@@ -2008,11 +2164,14 @@
       getState: () => ({ ...state, selected: state.selected.slice(), opponents: state.opponents.slice() }),
       getMatchup: (role, champion, opponent) => getMatchup(role, champion, opponent),
       evaluateCurrentPool: () => evaluatePool(state.selected),
+      evaluatePool: (pool = state.selected) => evaluatePool(normalizePoolForRole(pool, state.role)),
+      evaluateMatchups: (pool = state.selected) => evaluateMatchupCore(normalizePoolForRole(pool, state.role)),
+      buildRecommendations: (pool = state.selected) => buildCandidateRows(normalizePoolForRole(pool, state.role)).map((row) => ({ ...row })),
       buildCounterMatrix: (pool = state.selected, options = {}) => buildPoolCounterMatrix(pool, options),
       buildBanRecommendations: (pool = state.selected, options = {}) => buildBanRecommendations(pool, options),
       parseQuickPool: (text) => parseQuickPoolText(text),
       recommendationRows: () => state.recommendationRows.map((row) => ({ ...row })),
-      validateConfig: () => validateConfiguration().slice()
+      validateConfig: () => validateConfiguration()
     };
   }
 
@@ -2076,17 +2235,17 @@
     byId('banScopeSelect').addEventListener('change', (event) => {
       state.banScope = event.target.value === 'all' ? 'all' : 'q50';
       renderBanRecommendations();
-      announce(`Ban recommendations updated: ${state.banScope === 'all' ? 'all champions' : 'Q50 champions'}.`);
+      announce(`Ban recommendations updated: ${state.banScope === 'all' ? 'all champions' : `${BAN_RECOMMENDATION_QUANTILE_LABEL} champions`}.`);
     });
     byId('banLimitSelect').addEventListener('change', (event) => {
-      state.banLimit = Math.max(1, Math.min(30, Number(event.target.value) || BAN_RECOMMENDATION_LIMIT));
+      state.banLimit = Math.max(1, Math.min(BAN_RECOMMENDATION_MAX_LIMIT, Number(event.target.value) || BAN_RECOMMENDATION_LIMIT));
       renderBanRecommendations();
       announce(`Showing ${state.banLimit} ban recommendations.`);
     });
     byId('counterScopeSelect').addEventListener('change', (event) => {
       state.counterScope = event.target.value === 'all' ? 'all' : 'q50';
       renderCounterCoverage();
-      announce(`Counter coverage updated: ${state.counterScope === 'all' ? 'all champions' : 'Q50 champions'}.`);
+      announce(`Counter coverage updated: ${state.counterScope === 'all' ? 'all champions' : `${POOL_COUNTER_QUANTILE_LABEL} champions`}.`);
     });
     byId('counterMetricSelect').addEventListener('change', (event) => {
       state.counterMetric = POOL_COUNTER_METRICS[event.target.value] ? event.target.value : 'wilson';
@@ -2109,7 +2268,7 @@
         if (!input) return;
         input.value = '';
         input.focus();
-        if (input.id === 'firstChampion') { state.firstChampion = null; const validation = byId('firstValidation'); if (validation) validation.hidden = true; }
+        if (input.id === 'firstChampion') { state.firstChampion = null; input.setAttribute('aria-invalid', 'false'); const validation = byId('firstValidation'); if (validation) validation.hidden = true; }
         if (input.id === 'customChampion') { state.customChampion = null; updateCustomPreview(); }
       });
     });
@@ -2126,7 +2285,12 @@
       byId('emptyState').innerHTML = '<div class="pool-empty-monogram">!</div><h3>Dataset unavailable</h3><p>Place <code>matchup_data.js</code> in the same folder and load it before <code>pool.js</code>.</p>';
       return;
     }
-    validateConfiguration();
+    const configValidation = validateConfiguration();
+    if (configValidation.errors.length) {
+      setDataStatus('error', 'Invalid config');
+      byId('emptyState').innerHTML = `<div class="pool-empty-monogram">!</div><h3>Invalid configuration</h3><p>${esc(configValidation.errors.join(' '))}</p>`;
+      return;
+    }
     renderConfigurationSummary();
     renderRoleChoices();
     renderSizeChoices();

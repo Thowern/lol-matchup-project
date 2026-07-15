@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,13 +7,11 @@
 <title>Pool Builder Lab — Champion Pool Intelligence</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&family=JetBrains+Mono:wght@400..800&display=swap" rel="stylesheet">
 <style>
 /* ==========================================================================
-   SHARED VISUAL SYSTEM — cleaned: only tokens/resets/components actually used
-   by pool.html survive here. Dead rules inherited from the Matchup 1v1 tool
-   (picker, combobox, radar, river, snowball, tabs, panel-grid, glossary...)
-   have been removed. See pool-builder-specific rules further below.
+   SHARED VISUAL SYSTEM — legacy-compatible layer shared with the related
+   Matchup Lab pages. Pool-specific components are defined further below.
    ========================================================================== */
 
 
@@ -322,7 +320,7 @@ a:hover{text-decoration:underline}
 .role-pill.active{color:var(--champ-a);border-color:var(--champ-a-line);background:linear-gradient(180deg,var(--champ-a-soft),var(--surface-1))}
 .role-pill:focus-visible,.nav-link:focus-visible,.data-status-pill:focus-visible{outline:2px solid var(--champ-a);outline-offset:3px}
 .slot{position:relative;min-height:148px;padding:var(--space-5);border:1px solid var(--line);border-radius:var(--radius-xl);background:linear-gradient(180deg,var(--surface-2),var(--surface-1));box-shadow:var(--shadow-card);overflow:visible}
-.slot::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(420px 140px at 18% 0%,var(--slot-glow),transparent 72%);opacity:.62}
+.slot::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(420px 140px at 18% 0%,var(--slot-glow, var(--champ-a-faint)),transparent 72%);opacity:.62}
 .combobox-option:hover,.combobox-option.active{color:var(--ink);border-color:var(--line);background:var(--surface-3)}
 
 .empty-state{position:relative;margin-top:var(--space-4);padding:clamp(48px,8vw,86px) var(--space-6);border:1px dashed var(--line-strong);border-radius:var(--radius-2xl);text-align:center;background:radial-gradient(500px 220px at 50% 0%,oklch(100% 0 0 / .045),transparent 72%),linear-gradient(180deg,var(--surface-1),oklch(12.5% .020 240 / .72));overflow:hidden}
@@ -2206,7 +2204,7 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
       <a class="nav-link" href="./rankings.html">Rankings</a>
       <a class="nav-link active" href="./pool.html" aria-current="page">Pool Builder</a>
     </nav>
-    <div class="data-status-pill loading" id="dataStatus">Loading data</div>
+    <div class="data-status-pill loading" id="dataStatus" role="status" aria-live="polite">Loading data</div>
   </div>
 </header>
 
@@ -2287,6 +2285,7 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
 
       <div class="quick-table-wrap" tabindex="0" aria-label="Scrollable counter table">
         <table id="quickCounterTable" class="quick-counter-table">
+          <caption class="sr-only">Counter ranking for each lane champion against the pasted champion pool</caption>
           <thead id="quickCounterTableHead"></thead>
           <tbody id="quickCounterTableBody"></tbody>
         </table>
@@ -2318,11 +2317,11 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
         <div class="builder-step-head"><span class="step-num">3</span><strong>First champion</strong><em>optional</em></div>
         <div id="firstCombo" class="pool-field">
           <label class="sr-only" for="firstChampion">First champion</label>
-          <input id="firstChampion" class="pool-input" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Leave blank for the best WR">
+          <input id="firstChampion" class="pool-input" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-invalid="false" aria-describedby="firstHint firstValidation" placeholder="Leave blank for the best strength/reliability balance">
           <button class="clear-field" type="button" data-clear="firstChampion" aria-label="Clear the first champion">×</button>
           <div class="combo-list" role="listbox" hidden></div>
         </div>
-        <p class="field-hint">If the field is left empty, the champion with the best configured balance between overall strength and reliability is selected first.</p>
+        <p id="firstHint" class="field-hint">If the field is left empty, the champion with the best configured balance between overall strength and reliability is selected first.</p>
         <p id="firstValidation" class="field-validation" hidden>Select a champion from the list or leave the field completely empty.</p>
         <div id="thresholdBox" class="threshold-box">Select a lane to calculate the threshold.</div>
       </section>
@@ -2335,7 +2334,7 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
       <div id="emptyState" class="empty-state pool-empty-state">
         <div class="pool-empty-monogram">PB</div>
         <h3>Pool building starts with the lane.</h3>
-        <p>Configure the pool. Matchups without data will remain unknown: they are not replaced with artificial estimates and reduce the reliability index.</p>
+        <p>Configure the pool. Missing matchups are not fabricated: optimistic aggregates are conservatively pulled toward the configured prior and the reliability score is reduced.</p>
       </div>
 
       <section id="poolPanel" class="pool-work-card" hidden>
@@ -2355,7 +2354,7 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
 
       <section id="recommendationPanel" class="pool-work-card" hidden>
         <div class="reco-head">
-          <div><div class="micro-label pool-card-kicker">Marginal value</div><h2>Recommended next champions</h2><p>Ranked by how much they improve the current pool, not only by individual strength.</p></div>
+          <div><div class="micro-label pool-card-kicker">Projected marginal value</div><h2>Recommended next champions</h2><p>Ranked primarily by the projected change in the final pool score and by real matchup complementarity.</p></div>
           <div id="recoCount" class="reco-count"></div>
         </div>
         <div id="recommendations" class="recommendations"></div>
@@ -2380,7 +2379,7 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
           <div>
             <div class="micro-label pool-card-kicker">Draft protection</div>
             <h2>Recommended bans</h2>
-            <p>Identifies the most dangerous opponents for the current champion or pool. If the matchup most sensitive to snowballing still favors the pool in both WR and WR difference, the candidate is excluded.</p>
+            <p>Identifies the most dangerous opponents for the current pool. Matchup threat is dominant; popularity and candidate-oriented snowball pressure refine the order without hard exclusions.</p>
           </div>
           <div id="banResultCount" class="reco-count">—</div>
         </div>
@@ -2388,7 +2387,7 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
         <div class="counter-toolbar ban-toolbar" aria-label="Ban recommendation options">
           <label class="counter-control"><span>Candidate champions</span><select id="banScopeSelect"><option value="q50">Q50</option><option value="all">All</option></select></label>
           <label class="counter-control"><span>Results shown</span><select id="banLimitSelect"><option value="5">Top 5</option><option value="10" selected>Top 10</option><option value="15">Top 15</option><option value="20">Top 20</option></select></label>
-          <div class="ban-priority-note"><span><strong>Sorting:</strong> final ban index from highest to lowest. WR/WR difference, total matches, and snowballing contribute to the score according to the configured weights.</span></div>
+          <div class="ban-priority-note"><span><strong>Sorting:</strong> final ban index from highest to lowest. Matchup danger dominates; popularity and snowball pressure are gated by that danger.</span></div>
         </div>
 
         <div id="banRecommendationSummary" class="counter-summary"></div>
@@ -2421,7 +2420,7 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
     </section>
   </div>
 </main>
-<div id="liveRegion" class="sr-only" aria-live="polite"></div>
+<div id="liveRegion" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 <script src="./matchup_data.js"></script>
 <script src="./pool.config.js"></script>
 <script src="./champion-icons.js"></script>
