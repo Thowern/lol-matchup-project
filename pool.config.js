@@ -236,11 +236,11 @@ window.POOL_BUILDER_CONFIG = {
     // clearly separated from genuinely common picks without letting one
     // extreme outlier define the whole scale.
     popularityWeights: {
-      percentile: 30,
-      relativeVolume: 70
+      percentile: 50,
+      relativeVolume: 50
     },
-    popularityReferenceQuantile: 0.95,
-    popularityVolumeExponent: 1.10,
+    popularityReferenceQuantile: 0.50,
+    popularityVolumeExponent: 1.50,
 
     // Snowball remains gated by matchup danger because volatility without
     // opponent pressure is not, by itself, a reason to ban the champion.
