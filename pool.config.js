@@ -208,8 +208,8 @@ window.POOL_BUILDER_CONFIG = {
     // often the candidate is encountered in the role; its smaller final weight
     // prevents it from overpowering a true matchup threat.
     weights: {
-      matchupThreat: 50,
-      popularity: 40,
+      matchupThreat: 60,
+      popularity: 30,
       snowball: 10
     },
 
@@ -220,8 +220,8 @@ window.POOL_BUILDER_CONFIG = {
 
     poolThreatWeights: {
       bestAnswerThreat: 50,
-      averagePressure: 15,
-      worstExposure: 35
+      averagePressure: 25,
+      worstExposure: 25
     },
 
     shrinkageGames: 40,
