@@ -1950,6 +1950,14 @@ a.quick-table-counter:hover strong { color:var(--info); }
 .quick-counter-empty { color:var(--ink-muted); text-align:center!important; }
 .quick-table-no-results { padding:28px!important; color:var(--ink-faint); text-align:center!important; }
 
+.quick-ban-recommendation {
+  margin-top:var(--space-7);
+  padding-top:var(--space-6);
+  border-top:1px solid var(--danger-line);
+}
+.quick-ban-recommendation .ban-recommendation-head p { max-width:72ch; }
+.quick-ban-recommendation .ban-recommendation-rows { margin-bottom:0; }
+
 
 .ban-recommendation-panel {
   border-color:var(--danger-line);
@@ -2238,7 +2246,7 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
     <div class="quick-counter-intro">
       <div>
         <div class="micro-label pool-card-kicker">Instant analysis</div>
-        <h2 id="quickCounterTitle">Paste a pool and generate the table</h2>
+        <h2 id="quickCounterTitle">Paste a pool and generate the analysis</h2>
         <p>You do not need to start the builder. Specify the lane first, then separate champions with <strong>/</strong>, commas, or new lines.</p>
       </div>
       <div class="quick-format-example"><span>Format</span><code>TOP — Singed / Irelia / Nasus</code></div>
@@ -2258,13 +2266,13 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
     </div>
 
     <div class="quick-action-row">
-      <button id="quickAnalyzeBtn" class="primary" type="button">Generate the table</button>
+      <button id="quickAnalyzeBtn" class="primary" type="button">Generate the analysis</button>
       <button id="quickExampleBtn" class="ghost" type="button">Use example</button>
       <button id="quickClearBtn" class="ghost" type="button">Clear</button>
     </div>
     <p id="quickPoolValidation" class="quick-validation" hidden></p>
 
-    <section id="quickCounterResults" class="quick-counter-results" hidden aria-label="Quick counter table">
+    <section id="quickCounterResults" class="quick-counter-results" hidden aria-label="Instant pool analysis">
       <div class="counter-toolbar quick-counter-toolbar">
         <label class="counter-control"><span>Champions analyzed</span><select id="quickScopeSelect"><option value="q50">Q50</option><option value="all">All</option></select></label>
         <label class="counter-control"><span>Sort the pool by</span><select id="quickMetricSelect"><option value="wilson">Conservative Wilson</option><option value="decision">Pool Builder Index</option><option value="winrate">Win rate matchup</option><option value="diff">Difference from usual WR</option><option value="games">Number of matches</option></select></label>
@@ -2290,6 +2298,26 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
           <tbody id="quickCounterTableBody"></tbody>
         </table>
       </div>
+
+      <section id="quickBanRecommendationPanel" class="quick-ban-recommendation" hidden aria-labelledby="quickBanRecommendationTitle">
+        <div class="ban-recommendation-head">
+          <div>
+            <div class="micro-label pool-card-kicker">Instant draft protection</div>
+            <h2 id="quickBanRecommendationTitle">Recommended bans</h2>
+            <p>Uses the same ban engine as the full builder. A candidate is excluded when its most dangerous sufficiently sampled matchup is still favorable for the pool in both direct WR and WR difference.</p>
+          </div>
+          <div id="quickBanResultCount" class="reco-count">—</div>
+        </div>
+
+        <div class="counter-toolbar ban-toolbar" aria-label="Instant ban recommendation options">
+          <label class="counter-control"><span>Candidate champions</span><select id="quickBanScopeSelect"><option value="q50">Q50</option><option value="all">All</option></select></label>
+          <label class="counter-control"><span>Results shown</span><select id="quickBanLimitSelect"><option value="5">Top 5</option><option value="10" selected>Top 10</option><option value="15">Top 15</option><option value="20">Top 20</option></select></label>
+          <div class="ban-priority-note"><span><strong>Same logic as Pool Builder:</strong> final ban index from highest to lowest. Matchup threat, role popularity, snowball pressure, safe answers, missing-data priors and all configured thresholds are shared with the main analysis.</span></div>
+        </div>
+
+        <div id="quickBanRecommendationSummary" class="counter-summary"></div>
+        <div id="quickBanRecommendationRows" class="ban-recommendation-rows"></div>
+      </section>
     </section>
   </section>
 
@@ -2379,7 +2407,7 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
           <div>
             <div class="micro-label pool-card-kicker">Draft protection</div>
             <h2>Recommended bans</h2>
-            <p>Identifies the most dangerous opponents for the current pool. Matchup threat is dominant; popularity and candidate-oriented snowball pressure refine the order without hard exclusions.</p>
+            <p>Identifies the most dangerous opponents for the current pool. A candidate is excluded when its most dangerous sufficiently sampled matchup is still favorable for the pool in both direct WR and WR difference.</p>
           </div>
           <div id="banResultCount" class="reco-count">—</div>
         </div>
@@ -2387,7 +2415,7 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
         <div class="counter-toolbar ban-toolbar" aria-label="Ban recommendation options">
           <label class="counter-control"><span>Candidate champions</span><select id="banScopeSelect"><option value="q50">Q50</option><option value="all">All</option></select></label>
           <label class="counter-control"><span>Results shown</span><select id="banLimitSelect"><option value="5">Top 5</option><option value="10" selected>Top 10</option><option value="15">Top 15</option><option value="20">Top 20</option></select></label>
-          <div class="ban-priority-note"><span><strong>Sorting:</strong> final ban index from highest to lowest. Matchup danger dominates; popularity combines role percentile with actual volume against a robust Q95 reference, while snowball pressure is gated by matchup danger.</span></div>
+          <div class="ban-priority-note"><span><strong>Sorting:</strong> final ban index from highest to lowest. Matchup danger dominates; popularity combines role percentile with actual volume against the configured high-quantile reference, while snowball pressure is gated by matchup danger.</span></div>
         </div>
 
         <div id="banRecommendationSummary" class="counter-summary"></div>

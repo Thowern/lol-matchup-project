@@ -5,7 +5,7 @@
  * Weights are normalized automatically and do not need to add up to 100.
  */
 window.POOL_BUILDER_CONFIG = {
-  version: '3.0.1',
+  version: '3.1.1',
 
   /* 1. DATA SELECTION --------------------------------------------------- */
   dataSelection: {
@@ -208,20 +208,20 @@ window.POOL_BUILDER_CONFIG = {
     // often the candidate is encountered in the role; its smaller final weight
     // prevents it from overpowering a true matchup threat.
     weights: {
-      matchupThreat: 60,
-      popularity: 30,
+      matchupThreat: 48,
+      popularity: 42,
       snowball: 10
     },
 
     matchupWeights: {
-      directWinrate: 55,
-      relativeToGeneral: 45
+      directWinrate: 50,
+      relativeToGeneral: 50
     },
 
     poolThreatWeights: {
-      bestAnswerThreat: 50,
+      bestAnswerThreat: 40,
       averagePressure: 25,
-      worstExposure: 25
+      worstExposure: 35
     },
 
     shrinkageGames: 40,
@@ -231,16 +231,16 @@ window.POOL_BUILDER_CONFIG = {
 
     // Popularity combines rank within the role with actual match volume.
     // The old logarithmic scale compressed low and high volumes too much.
-    // relativeVolume is measured against the role's Q95 match count and then
-    // shaped with an exponent above 1, so lightly played champions remain
+    // relativeVolume is measured against the configured high role quantile and
+    // then shaped with an exponent above 1, so lightly played champions remain
     // clearly separated from genuinely common picks without letting one
     // extreme outlier define the whole scale.
     popularityWeights: {
-      percentile: 50,
-      relativeVolume: 50
+      percentile: 40,
+      relativeVolume: 60
     },
-    popularityReferenceQuantile: 0.5,
-    popularityVolumeExponent: 1.5,
+    popularityReferenceQuantile: 0.9,
+    popularityVolumeExponent: 1.1,
 
     // Snowball remains gated by matchup danger because volatility without
     // opponent pressure is not, by itself, a reason to ban the champion.
@@ -254,7 +254,20 @@ window.POOL_BUILDER_CONFIG = {
 
     // The candidate is considered covered only when at least one known answer
     // keeps its adjusted threat at or below 52.5%.
-    safeAnswerThreatMax: 0.525
+    safeAnswerThreatMax: 0.525,
+
+    // Hard exclusion: inspect the candidate's most dangerous known matchup
+    // against the pool. If that same matchup is still favorable for the pool
+    // champion both in direct WR and in WR difference versus its usual level,
+    // the candidate is not considered a useful ban.
+    excludeIfCriticalPoolPerformancePositive: true,
+    criticalPoolMinWinrate: 0.50,
+    criticalPoolMinWinrateDiff: 0,
+
+    // A hard exclusion requires a meaningful direct sample and sufficient
+    // matchup coverage across the selected pool.
+    criticalPoolMinGames: 40,
+    criticalPoolMinKnownRatio: 1.0
   },
 
   /* 10. COUNTER TABLE --------------------------------------------------- */
