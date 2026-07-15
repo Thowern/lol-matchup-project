@@ -230,8 +230,8 @@ window.POOL_BUILDER_CONFIG = {
     unknownThreatPrior: 0.50,
 
     popularityWeights: {
-      percentile: 50,
-      logarithmic: 50
+      percentile: 60,
+      logarithmic: 40
     },
 
     // Snowball remains gated by matchup danger because volatility without
