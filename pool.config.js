@@ -208,8 +208,8 @@ window.POOL_BUILDER_CONFIG = {
     // often the candidate is encountered in the role; its smaller final weight
     // prevents it from overpowering a true matchup threat.
     weights: {
-      matchupThreat: 72,
-      popularity: 18,
+      matchupThreat: 50,
+      popularity: 40,
       snowball: 10
     },
 
