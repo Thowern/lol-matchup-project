@@ -236,8 +236,8 @@ window.POOL_BUILDER_CONFIG = {
     // clearly separated from genuinely common picks without letting one
     // extreme outlier define the whole scale.
     popularityWeights: {
-      percentile: 60,
-      relativeVolume: 40
+      percentile: 50,
+      relativeVolume: 50
     },
     popularityReferenceQuantile: 0.5,
     popularityVolumeExponent: 1.5,
