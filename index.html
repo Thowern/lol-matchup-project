@@ -3,342 +3,410 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>League of Legends Match Data Research</title>
+    <meta name="description" content="League Matchup Analyzer is a functional, non-commercial League of Legends analytics suite for matchup, draft, ranking, counter, and champion-pool research.">
+    <title>League Matchup Analyzer — Matchup & Draft Intelligence</title>
     <style>
         :root {
             --bg: #0d1117;
             --surface: #161b22;
+            --surface-raised: #1c2330;
             --border: #30363d;
             --text: #c9d1d9;
             --muted: #8b949e;
+            --heading: #f0f6fc;
             --accent: #58a6ff;
             --gold: #d4a853;
-            --green: #238636;
-            --green-hover: #2ea043;
+            --green: #3fb950;
+            --green-bg: #132a1a;
+            --blue-bg: #111f33;
         }
-        
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
+        html { scroll-behavior: smooth; }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
             background: var(--bg);
             color: var(--text);
-            line-height: 1.6;
+            line-height: 1.65;
             min-height: 100vh;
         }
-        
+
         .container {
-            max-width: 860px;
+            max-width: 1040px;
             margin: 0 auto;
-            padding: 60px 24px;
+            padding: 56px 24px;
         }
-        
+
         header {
             text-align: center;
-            margin-bottom: 48px;
-            padding-bottom: 32px;
+            margin-bottom: 34px;
+            padding: 12px 0 38px;
             border-bottom: 1px solid var(--border);
         }
-        
+
         header h1 {
-            font-size: 2.4rem;
-            font-weight: 600;
-            color: #f0f6fc;
-            margin-bottom: 8px;
-            letter-spacing: -0.5px;
+            font-size: clamp(2.1rem, 5vw, 3.25rem);
+            line-height: 1.08;
+            font-weight: 700;
+            color: var(--heading);
+            margin-bottom: 12px;
+            letter-spacing: -0.04em;
         }
-        
+
         header .subtitle {
-            font-size: 1.05rem;
+            max-width: 760px;
+            margin: 0 auto;
+            font-size: 1.08rem;
             color: var(--muted);
-            font-weight: 400;
         }
-        
+
+        .badges {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
         .badge {
-            display: inline-block;
-            background: #1a2332;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--blue-bg);
             border: 1px solid var(--border);
             color: var(--accent);
-            padding: 6px 16px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            margin-top: 16px;
-        }
-        
-        .badge-green {
-            background: #1a2e1a;
-            border: 1px solid #2ea043;
-            color: #3fb950;
-        }
-        
-        .demo-section {
-            background: var(--surface);
-            border: 1px solid #2ea043;
-            border-radius: 8px;
-            padding: 28px 32px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .demo-section h2 {
-            font-size: 1.35rem;
+            padding: 7px 14px;
+            border-radius: 999px;
+            font-size: 0.82rem;
             font-weight: 600;
-            color: #3fb950;
+        }
+
+        .badge-green {
+            background: var(--green-bg);
+            border-color: #2ea043;
+            color: var(--green);
+        }
+
+        .hero {
+            background: linear-gradient(145deg, #172131, var(--surface));
+            border: 1px solid #365f8c;
+            border-radius: 12px;
+            padding: 34px;
+            margin-bottom: 22px;
+        }
+
+        .eyebrow {
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-size: 0.76rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .hero h2 {
+            color: var(--heading);
+            font-size: 1.65rem;
+            line-height: 1.25;
             margin-bottom: 12px;
-            padding-bottom: 0;
-            border-bottom: none;
         }
-        
-        .demo-section p {
-            color: var(--text);
-            margin-bottom: 20px;
+
+        .hero p { max-width: 860px; }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 22px;
         }
-        
+
         .btn {
             display: inline-block;
-            padding: 14px 32px;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 1rem;
+            padding: 11px 18px;
+            border-radius: 7px;
+            font-weight: 650;
+            font-size: 0.93rem;
             text-decoration: none;
-            transition: all 0.2s;
+            transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
         }
-        
-        .btn-primary {
-            background: var(--green);
-            color: white;
-            border: 1px solid var(--green-hover);
-        }
-        
-        .btn-primary:hover {
-            background: var(--green-hover);
-            text-decoration: none;
-        }
-        
-        .btn-secondary {
-            background: transparent;
-            color: var(--accent);
-            border: 1px solid var(--border);
-            margin-left: 12px;
-        }
-        
-        .btn-secondary:hover {
-            background: #1a2332;
-            text-decoration: none;
-        }
-        
+
+        .btn:hover { transform: translateY(-1px); text-decoration: none; }
+        .btn-primary { background: #238636; color: #fff; border: 1px solid #2ea043; }
+        .btn-primary:hover { background: #2ea043; }
+        .btn-secondary { background: #182433; color: var(--accent); border: 1px solid #365f8c; }
+        .btn-secondary:hover { background: #1e3046; }
+
         section {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 28px 32px;
+            border-radius: 10px;
+            padding: 28px 30px;
             margin-bottom: 20px;
         }
-        
+
         section h2 {
             font-size: 1.25rem;
-            font-weight: 600;
-            color: #f0f6fc;
+            color: var(--heading);
             margin-bottom: 16px;
             padding-bottom: 10px;
             border-bottom: 1px solid var(--border);
         }
-        
-        section p {
-            color: var(--text);
-            margin-bottom: 12px;
+
+        section h3 {
+            font-size: 1rem;
+            color: var(--heading);
+            margin-bottom: 7px;
         }
-        
-        section ul {
-            list-style: none;
-            padding: 0;
+
+        section p { margin-bottom: 12px; }
+        section p:last-child { margin-bottom: 0; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            margin-bottom: 20px;
         }
-        
-        section ul li {
+
+        .tool-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px;
+        }
+
+        .tool-card .label {
+            display: inline-block;
+            color: var(--gold);
+            font-size: 0.74rem;
+            font-weight: 750;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .tool-card p { color: var(--muted); font-size: 0.94rem; }
+        .tool-card a { display: inline-block; margin-top: 12px; font-weight: 650; }
+
+        ul { list-style: none; padding: 0; }
+
+        li {
             position: relative;
             padding-left: 20px;
-            margin-bottom: 8px;
-            color: var(--text);
+            margin-bottom: 9px;
         }
-        
-        section ul li::before {
+
+        li::before {
             content: "";
             position: absolute;
             left: 0;
-            top: 10px;
+            top: 0.68em;
             width: 6px;
             height: 6px;
             background: var(--accent);
             border-radius: 50%;
         }
-        
-        .grid {
+
+        .two-column {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 24px;
         }
-        
-        @media (max-width: 600px) {
-            .grid { grid-template-columns: 1fr; }
-            .container { padding: 32px 16px; }
-            .btn-secondary { margin-left: 0; margin-top: 10px; }
-        }
-        
+
         .regions {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-top: 8px;
+            margin-top: 12px;
         }
-        
+
         .region-tag {
-            background: #1a2332;
+            background: var(--blue-bg);
             border: 1px solid var(--border);
-            padding: 4px 14px;
-            border-radius: 16px;
-            font-size: 0.82rem;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.79rem;
             color: var(--text);
-            font-family: "SF Mono", "Fira Code", monospace;
+            font-family: "SFMono-Regular", Consolas, monospace;
         }
-        
+
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 8px;
+            margin-top: 6px;
         }
-        
-        table th {
+
+        th, td {
             text-align: left;
-            color: var(--muted);
-            font-weight: 500;
-            font-size: 0.85rem;
-            padding: 8px 0;
+            padding: 10px 8px;
             border-bottom: 1px solid var(--border);
+            vertical-align: top;
         }
-        
-        table td {
-            padding: 8px 0;
-            border-bottom: 1px solid var(--border);
-            font-size: 0.95rem;
+
+        th { color: var(--muted); font-size: 0.82rem; font-weight: 600; }
+        td { font-size: 0.92rem; }
+        code { color: #79c0ff; font-family: "SFMono-Regular", Consolas, monospace; }
+
+        .notice {
+            border-left: 3px solid var(--green);
+            background: var(--green-bg);
+            padding: 16px 18px;
+            border-radius: 0 7px 7px 0;
+            color: #d7f3dc;
         }
-        
-        .pipeline-status {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-top: 12px;
-        }
-        
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #3fb950;
-            box-shadow: 0 0 8px #3fb95066;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .status-text {
-            font-weight: 500;
-            color: #3fb950;
-        }
-        
+
         footer {
             text-align: center;
-            margin-top: 48px;
-            padding-top: 24px;
+            margin-top: 42px;
+            padding-top: 26px;
             border-top: 1px solid var(--border);
             color: var(--muted);
-            font-size: 0.85rem;
+            font-size: 0.84rem;
         }
-        
-        footer a {
-            color: var(--accent);
-            text-decoration: none;
-        }
-        
-        footer a:hover {
-            text-decoration: underline;
-        }
-        
-        a {
-            color: var(--accent);
-            text-decoration: none;
-        }
-        
-        a:hover {
-            text-decoration: underline;
+
+        footer p { margin-bottom: 6px; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        @media (max-width: 760px) {
+            .grid, .two-column { grid-template-columns: 1fr; }
+            .container { padding: 32px 16px; }
+            .hero, section { padding: 24px 20px; }
+            table { display: block; overflow-x: auto; }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>League Match Data Research</h1>
-            <p class="subtitle">Non-Commercial Educational Project for Statistical Analysis of Matchup Progression</p>
-            <span class="badge">Data Pipeline Active</span>
-            <span class="badge badge-green">Demo Available</span>
+            <h1>League Matchup Analyzer</h1>
+            <p class="subtitle">A functional, non-commercial analytics suite for matchup preparation, draft evaluation, champion rankings, counter research, and champion-pool planning.</p>
+            <div class="badges">
+                <span class="badge badge-green">Functional &amp; Testable</span>
+                <span class="badge">Aggregated Match Data</span>
+                <span class="badge">Policy-Aware Pipeline</span>
+            </div>
         </header>
 
-        <div class="demo-section">
-            <h2>Interactive Visualization Demo</h2>
-            <p>Explore champion matchups, win rates, and lane dynamics with our interactive data dashboard. Built with real match data from players across all regions.</p>
-            <a href="visual.html" class="btn btn-primary">Launch Demo</a>
-            <a href="#about" class="btn btn-secondary">Learn More</a>
+        <div class="hero">
+            <p class="eyebrow">Player-focused statistical research</p>
+            <h2>Explainable insights that support decisions without replacing them</h2>
+            <p>League Matchup Analyzer converts large volumes of ranked match data into readable, role-specific analysis. It helps players and analysts understand recurring patterns while preserving uncertainty, player agency, and competitive integrity. The application does not automate gameplay, calculate hidden skill ratings, or provide real-time prescriptive assistance.</p>
+            <div class="actions">
+                <a href="visual.html" class="btn btn-primary">Open Matchup Lab</a>
+                <a href="tm_data.html" class="btn btn-secondary">Open Team DraftLab</a>
+                <a href="rankings.html" class="btn btn-secondary">Open Rankings Lab</a>
+                <a href="pool.html" class="btn btn-secondary">Open Pool Builder</a>
+            </div>
         </div>
 
-        <section id="about">
+        <section id="overview">
             <h2>Project Overview</h2>
-            <p>This project collects publicly available match data from the Riot Games API across all competitive League of Legends regions. All data is aggregated, anonymized, and used exclusively for educational and research purposes. No raw data is commercially distributed or resold. The project fully complies with the Riot Games API Terms of Service.</p>
+            <p>The project is a complete web application with clear, testable user flows. Public-facing results are generated from Riot Games API data and presented as aggregated champion, role, matchup, and composition statistics. The interface explains sample size, missing data, confidence, and the practical limits of each conclusion instead of presenting statistical tendencies as guaranteed outcomes.</p>
+            <p>The product is intended for education, preparation, and research. It adds original analytical value through derived metrics, statistical controls, comparative visualizations, and plain-language interpretation. It does not expose raw player profiles, Riot-issued identifiers, API credentials, or complete individual match histories.</p>
         </section>
 
-        <div class="grid">
-            <section>
-                <h2>Research Areas</h2>
-                <ul>
-                    <li>Meta analysis across game patches</li>
-                    <li>Champion win rate and scaling curves</li>
-                    <li>Team composition synergies</li>
-                    <li>Regional playstyle differences</li>
-                    <li>Gold and experience power curves</li>
-                    <li>Match outcome prediction models</li>
-                </ul>
-            </section>
-            
-            <section>
-                <h2>Regions Covered</h2>
-                <p style="margin-bottom:12px;">Data collected from all 11 competitive servers:</p>
-                <div class="regions">
-                    <span class="region-tag">EUW</span><span class="region-tag">EUNE</span><span class="region-tag">NA</span><span class="region-tag">KR</span>
-                    <span class="region-tag">BR</span><span class="region-tag">LAN</span><span class="region-tag">LAS</span><span class="region-tag">OCE</span>
-                    <span class="region-tag">TR</span><span class="region-tag">RU</span><span class="region-tag">JP</span>
-                </div>
-            </section>
+        <div class="grid" aria-label="Application modules">
+            <article class="tool-card">
+                <span class="label">1v1 analysis</span>
+                <h3>Matchup Lab</h3>
+                <p>Compares two champions in the same role across win-rate context, gold and experience progression, combat, objectives, timing, and reliability.</p>
+                <a href="visual.html">Explore Matchup Lab →</a>
+            </article>
+            <article class="tool-card">
+                <span class="label">Composition analysis</span>
+                <h3>Team DraftLab</h3>
+                <p>Evaluates two compositions lane by lane and explains differences in pressure, scaling, damage, control, objectives, volatility, and evidence quality.</p>
+                <a href="tm_data.html">Explore Team DraftLab →</a>
+            </article>
+            <article class="tool-card">
+                <span class="label">Rankings &amp; counters</span>
+                <h3>Rankings Lab</h3>
+                <p>Provides role rankings and counter analysis with configurable evidence thresholds, conservative Wilson controls, and visible low-sample warnings.</p>
+                <a href="rankings.html">Explore Rankings Lab →</a>
+            </article>
+            <article class="tool-card">
+                <span class="label">Champion-pool planning</span>
+                <h3>Pool Builder Lab</h3>
+                <p>Builds statistically balanced champion pools using matchup coverage, worst-case weaknesses, damage diversity, strength, and reliability.</p>
+                <a href="pool.html">Explore Pool Builder →</a>
+            </article>
         </div>
 
         <section>
-            <h2>Technical Implementation</h2>
+            <h2>Data Sources and Coverage</h2>
+            <table>
+                <thead>
+                    <tr><th>Source</th><th>Purpose</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>Match-V5</code></td><td>Ranked match retrieval and match-level gameplay statistics used to produce derived, aggregated analysis.</td></tr>
+                    <tr><td><code>League-V4</code></td><td>League-entry discovery used by the controlled ingestion workflow for the project's configured ranked populations.</td></tr>
+                    <tr><td><code>Data Dragon</code></td><td>Approved static champion metadata and visual assets.</td></tr>
+                </tbody>
+            </table>
+            <p style="margin-top:16px;">Current configured regional coverage:</p>
+            <div class="regions">
+                <span class="region-tag">EUW</span><span class="region-tag">EUNE</span><span class="region-tag">NA</span><span class="region-tag">KR</span>
+                <span class="region-tag">BR</span><span class="region-tag">LAN</span><span class="region-tag">LAS</span><span class="region-tag">OCE</span>
+                <span class="region-tag">TR</span><span class="region-tag">RU</span><span class="region-tag">JP</span>
+            </div>
+        </section>
+
+        <section>
+            <h2>Responsible API Operation</h2>
+            <div class="two-column">
+                <div>
+                    <h3>Traffic and reliability controls</h3>
+                    <ul>
+                        <li>Server-side token-bucket rate limiting and bounded concurrency</li>
+                        <li>Exponential backoff and controlled handling of HTTP 429 responses</li>
+                        <li>Request caching and LRU-based match deduplication</li>
+                        <li>Incremental, schema-controlled Parquet storage</li>
+                        <li>Checkpoint persistence and graceful job recovery</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>Security and key handling</h3>
+                    <ul>
+                        <li>API traffic is performed server-side over HTTPS</li>
+                        <li>API credentials are never embedded in public client code</li>
+                        <li>The registered key is restricted to this single product</li>
+                        <li>Public pages expose only derived and aggregated outputs</li>
+                        <li>Operational controls are reviewed as Riot policies evolve</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Competitive Integrity and Player Safety</h2>
             <ul>
-                <li>Token-bucket rate limiter with exponential backoff for API compliance</li>
-                <li>Multi-threaded architecture with Redis-based state management</li>
-                <li>Incremental Parquet writes with fixed schemas for data consistency</li>
-                <li>LRU caching to deduplicate processed matches</li>
-                <li>Graceful shutdown with checkpoint persistence</li>
+                <li>No gameplay automation, scripting, input modification, or interaction with the League client</li>
+                <li>No real-time overlay intended to prescribe actions during a live match</li>
+                <li>No MMR/ELO estimation, boosting, account trading, hidden-player identification, betting, or gambling</li>
+                <li>No claims of certainty: analysis is retrospective, descriptive, and explicitly uncertainty-aware</li>
+                <li>Multiple strategic options are highlighted so the product supports decision diversity rather than removing player choice</li>
             </ul>
         </section>
 
+        <section>
+            <h2>Data Stewardship</h2>
+            <p>The website does not require account registration and does not ask users to submit a Riot ID or personal profile. Where Riot-issued technical identifiers are present in source API responses, they are handled only as operational fields needed for retrieval, deduplication, and reproducibility; they are not displayed publicly or combined with external identity data. The project does not sell, license, or redistribute Riot API data.</p>
+            <p>Detailed practices are documented in the <a href="privacy.html">Privacy Policy</a>, and acceptable use, analytical limitations, Riot attribution, and service conditions are documented in the <a href="terms.html">Terms of Service</a>.</p>
+        </section>
+
+        <section>
+            <h2>Operational Readiness</h2>
+            <div class="notice">The application is already functional and testable. Its scheduled multi-region ingestion model is designed around predictable, long-lived access, measured request volumes, and responsible scaling within the limits assigned to the registered product. Temporary credentials are not embedded in the public application and are not treated as a substitute for a controlled production workflow.</div>
+        </section>
+
         <footer>
-            <p>&copy; 2025 League Match Data Research &mdash; Educational Project</p>
-            <p style="margin-top:4px;">Not affiliated with or endorsed by Riot Games, Inc.</p>
-            <p style="margin-top:12px;">
-                <a href="terms.html">Terms of Service</a> &nbsp;|&nbsp;
-                <a href="privacy.html">Privacy Policy</a>
-            </p>
+            <p>&copy; 2026 League Matchup Analyzer — Non-Commercial Educational and Research Project</p>
+            <p>League Matchup Analyzer was created under Riot Games' "Legal Jibber Jabber" policy using assets owned by Riot Games. Riot Games does not endorse or sponsor this project.</p>
+            <p style="margin-top:12px;"><a href="terms.html">Terms of Service</a> &nbsp;|&nbsp; <a href="privacy.html">Privacy Policy</a></p>
         </footer>
     </div>
 </body>
