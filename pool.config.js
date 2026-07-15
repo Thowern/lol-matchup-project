@@ -239,8 +239,8 @@ window.POOL_BUILDER_CONFIG = {
       percentile: 50,
       relativeVolume: 50
     },
-    popularityReferenceQuantile: 0.50,
-    popularityVolumeExponent: 1.50,
+    popularityReferenceQuantile: 0.1,
+    popularityVolumeExponent: 1.9,
 
     // Snowball remains gated by matchup danger because volatility without
     // opponent pressure is not, by itself, a reason to ban the champion.
