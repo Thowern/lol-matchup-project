@@ -2387,7 +2387,7 @@ a.pool-counter-answer:hover { transform:translateY(-1px); border-color:var(--inf
         <div class="counter-toolbar ban-toolbar" aria-label="Ban recommendation options">
           <label class="counter-control"><span>Candidate champions</span><select id="banScopeSelect"><option value="q50">Q50</option><option value="all">All</option></select></label>
           <label class="counter-control"><span>Results shown</span><select id="banLimitSelect"><option value="5">Top 5</option><option value="10" selected>Top 10</option><option value="15">Top 15</option><option value="20">Top 20</option></select></label>
-          <div class="ban-priority-note"><span><strong>Sorting:</strong> final ban index from highest to lowest. Matchup danger dominates; popularity follows the role match volume directly, while snowball pressure is gated by matchup danger.</span></div>
+          <div class="ban-priority-note"><span><strong>Sorting:</strong> final ban index from highest to lowest. Matchup danger dominates; popularity combines role percentile with actual volume against a robust Q95 reference, while snowball pressure is gated by matchup danger.</span></div>
         </div>
 
         <div id="banRecommendationSummary" class="counter-summary"></div>

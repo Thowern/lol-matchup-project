@@ -5,7 +5,7 @@
  * Weights are normalized automatically and do not need to add up to 100.
  */
 window.POOL_BUILDER_CONFIG = {
-  version: '3.0.0',
+  version: '3.0.1',
 
   /* 1. DATA SELECTION --------------------------------------------------- */
   dataSelection: {
@@ -208,8 +208,8 @@ window.POOL_BUILDER_CONFIG = {
     // often the candidate is encountered in the role; its smaller final weight
     // prevents it from overpowering a true matchup threat.
     weights: {
-      matchupThreat: 50,
-      popularity: 40,
+      matchupThreat: 72,
+      popularity: 18,
       snowball: 10
     },
 
@@ -229,10 +229,18 @@ window.POOL_BUILDER_CONFIG = {
     fullThreatAt: 0.60,
     unknownThreatPrior: 0.50,
 
+    // Popularity combines rank within the role with actual match volume.
+    // The old logarithmic scale compressed low and high volumes too much.
+    // relativeVolume is measured against the role's Q95 match count and then
+    // shaped with an exponent above 1, so lightly played champions remain
+    // clearly separated from genuinely common picks without letting one
+    // extreme outlier define the whole scale.
     popularityWeights: {
-      percentile: 80,
-      logarithmic: 20
+      percentile: 30,
+      relativeVolume: 70
     },
+    popularityReferenceQuantile: 0.95,
+    popularityVolumeExponent: 1.10,
 
     // Snowball remains gated by matchup danger because volatility without
     // opponent pressure is not, by itself, a reason to ban the champion.

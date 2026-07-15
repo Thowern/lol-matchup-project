@@ -697,10 +697,28 @@
 
       const candidateGames = profileGames(role, candidate);
       const popularityPercentile = percentileRank(candidateGames, allPopularityValues);
-      const popularityLogarithmic = clamp(Math.log1p(candidateGames) / Math.log1p(maxGames) * 100, 0, 100);
+      const popularityReferenceQuantile = clamp(
+        safeNumber(banConfig.popularityReferenceQuantile) ?? 0.95,
+        0.50,
+        1
+      );
+      const sortedPopularityValues = allPopularityValues
+        .map(safeNumber)
+        .filter((value) => value !== null && value > 0)
+        .sort((a, b) => a - b);
+      const popularityReferenceGames = Math.max(
+        1,
+        quantile(sortedPopularityValues, popularityReferenceQuantile) ?? maxGames
+      );
+      const popularityVolumeExponent = Math.max(0.01, safeNumber(banConfig.popularityVolumeExponent) ?? 1.10);
+      const popularityRelativeVolume = clamp(
+        (clamp(candidateGames / popularityReferenceGames, 0, 1) ** popularityVolumeExponent) * 100,
+        0,
+        100
+      );
       const rawPopularity = weightedScore(
-        { percentile: popularityPercentile, logarithmic: popularityLogarithmic },
-        banConfig.popularityWeights || { percentile: 50, logarithmic: 50 }
+        { percentile: popularityPercentile, relativeVolume: popularityRelativeVolume },
+        banConfig.popularityWeights || { percentile: 30, relativeVolume: 70 }
       );
       // Popularity is an intrinsic role-presence score and must depend only on
       // the candidate's total matches. Its limited weight in the final index
@@ -750,7 +768,8 @@
         popularity,
         rawPopularity,
         popularityPercentile,
-        popularityLogarithmic,
+        popularityRelativeVolume,
+        popularityReferenceGames,
         aggregateSnowball,
         snowball,
         rawSnowball,
@@ -2125,6 +2144,8 @@
     }
     requireRange('banRecommendation.safeAnswerThreatMax', CONFIG?.banRecommendation?.safeAnswerThreatMax, 0, 1);
     requireRange('banRecommendation.unknownThreatPrior', CONFIG?.banRecommendation?.unknownThreatPrior, 0, 1);
+    requireRange('banRecommendation.popularityReferenceQuantile', CONFIG?.banRecommendation?.popularityReferenceQuantile, 0.50, 1);
+    requirePositive('banRecommendation.popularityVolumeExponent', CONFIG?.banRecommendation?.popularityVolumeExponent);
     requirePositive('banRecommendation.fullSnowballAt', CONFIG?.banRecommendation?.fullSnowballAt);
 
     if (!POOL_SIZES.length) errors.push('ui.poolSizes must contain at least one integer between 1 and 10.');
